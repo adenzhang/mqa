@@ -25,6 +25,15 @@
 // Windows Header Files:
 #include <windows.h>
 
+//-------------- added ---------------
+#include <WinSock2.h>
+
+
+
+#else // linux
+
+#include <sys/time.h>
+
 #endif // WIN32
 
 #endif // MQA_MAQ_GLOBAL_H_

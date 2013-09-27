@@ -11,6 +11,7 @@
 #include "ftlcollections.h"
 #include "mqa_flowkeys.h"
 #include "mqainterface.h"
+#include "classifyconsts.h"
 
 #ifdef WIN32
 #include <winsock2.h>
@@ -22,10 +23,12 @@
 namespace mqa {
 
     using namespace std;
+
+    class FlowKey;
     class VQStatsStream
     {
     public:
-        VQStatsStream() : pMQmonStream(NULL), bActivate(false){};
+        VQStatsStream(MQmonStreamType type) : streamType(type),pMQmonStream(NULL), bActivate(false){};
         ~VQStatsStream()
         {
             // TODO: need set m_nLastTime of interface, so that
@@ -33,14 +36,26 @@ namespace mqa {
             //if (bActivate)
             //    dprintf(__FUNCTION__" error: stream %p may still be in use.\n", this);
         }
-        virtual void retrieveResults()
+        virtual bool retrieveResults()
         {
-            // todo: retrieve statistical results from CMQMonStream.
+            if(pMQmonStream) {
+                if( pMQmonStream->GetMetrics(metrics) ) {
+                    result.mos = metrics.MOS;
+                    result.jitter = metrics.Jitter;
+                    result.streamType = streamType;
+                    result.codecType =  pMQmonStream->m_codecType;
+                    return true;
+                }
+            }
+            return false;
         }
 
-        CMQmonStream *pMQmonStream;
-        bool bActivate;
-        StreamResult result;
+        CMQmonStream  *pMQmonStream;
+        CMQmonMetrics  metrics;
+        bool           bActivate;
+        StreamResult   result;
+        MQmonStreamType streamType;
+        FlowKey        *flowKey;
         //    RtsdBufFmtVQStatsMOS nMOS;
     };
     typedef boost::shared_ptr<VQStatsStream> VQStatsStreamPtr;
@@ -49,9 +64,9 @@ namespace mqa {
     {
     public:
         VQStatsStreamSet():Streams(3) {
-            Streams[0].reset(new VQStatsStream);
-            Streams[1].reset(new VQStatsStream);
-            Streams[2].reset(new VQStatsStream);
+            Streams[0].reset(new VQStatsStream(MQMON_STREAM_AUDIO));
+            Streams[1].reset(new VQStatsStream(MQMON_STREAM_VIDEO));
+            Streams[2].reset(new VQStatsStream(MQMON_STREAM_VOICE));
         };
         ~VQStatsStreamSet() {};
 
@@ -69,7 +84,16 @@ namespace mqa {
                 return VQStatsStreamPtr();
             }
         }
-        virtual void retriveResults()
+        virtual VQStatsStreamPtr GetActiveStream()
+        {
+            for(int i=0; i<3; ++i) {
+                if(Streams[i]->bActivate) {
+                    return Streams[i];
+                }
+            }
+            return VQStatsStreamPtr();
+        }
+        virtual void retrieveResults()
         {
             for(size_t i=0;i<Streams.size(); ++i) {
                 if( Streams[i]->bActivate )
@@ -115,10 +139,20 @@ namespace mqa {
     class VQStatsInterface
     {
     public:
-        VQStatsInterface(UINT8 nType_) : nType(nType_) {}
-        ~VQStatsInterface() {}
+        VQStatsInterface(UINT8 nType_) : nType(nType_) {
+            pMQmonInterface = MQmon::Instance()->CreateInterface();
+            pMQmonInterface->m_pUserdata = this;
+        }
+        virtual ~VQStatsInterface() {
+            if (pMQmonInterface)
+            {
+                delete pMQmonInterface;
+                pMQmonInterface = NULL;
+            }
+        }
 
         UINT8 nType;
+        CMQmonInterface *pMQmonInterface;
         void *userData;
     };
 
@@ -129,7 +163,10 @@ namespace mqa {
     public:
         //    VQStatsSubEntry():threadIdx(-1) {}
         VQStatsSubEntry(const VQStatsTunnelKey& k):flowKey(k), flowKey1(k), threadIdx(-1) 
-        {}
+        {
+            BiFlowKeys[0] = &flowKey;
+            BiFlowKeys[1] = &flowKey1;
+        }
         VQStatsSubEntry(const VQStatsConnKey& k):flowKey(k), flowKey1(k), threadIdx(-1) {
             std::swap(flowKey1.pConnKey->ip, flowKey.pConnKey->ip);
             std::swap(flowKey1.pConnKey->port, flowKey.pConnKey->port);
@@ -137,6 +174,10 @@ namespace mqa {
 
         ~VQStatsSubEntry() {}
 
+        inline bool HasData(int k) const {
+            if(k<0 || k>1) return false;
+            return BiDirects[k] &&BiDirects[k]->HasActivate();
+        }
         inline bool HasData() const
         {
             return (BiDirects[0] &&BiDirects[0]->HasActivate()) || (BiDirects[1] && BiDirects[1]->HasActivate());
@@ -145,6 +186,7 @@ namespace mqa {
         int                 threadIdx;
         FlowKey           flowKey;
         FlowKey           flowKey1;
+        FlowKey             *BiFlowKeys[2];
         VQStatsStreamSetPtr BiDirects[2]; // [0] src->dst; [1] dst->src
 #ifdef VQSTATS_DEBUG
         VQStatsConnSubEntryKey Key;
@@ -179,24 +221,14 @@ namespace mqa {
     public:
         VQStatsConnEntry1(UINT8 nType=LAYER_NONE)
             : VQStatsInterface(nType)
-        {
-            pMQmonInterface = MQmon::Instance()->CreateInterface();
-            pMQmonInterface->m_pUserdata = this;
-        }
+        {}
         ~VQStatsConnEntry1()
         {
-            if (pMQmonInterface)
-            {
-                delete pMQmonInterface;
-                pMQmonInterface = NULL;
-            }
-
             for (ftl::POSITION Pos = ConnEntry2Map.GetStartPosition(); Pos;)
                 delete ConnEntry2Map.GetNextValue(Pos);
             ConnEntry2Map.RemoveAll();
         }
 
-        CMQmonInterface* pMQmonInterface;
         VQStatsConnEntry2Map ConnEntry2Map;
 #ifdef VQSTATS_DEBUG
         VQStatsConnEntry1Key Key;
@@ -293,24 +325,14 @@ namespace mqa {
     public:
         VQStatsTunnelEntry(UINT8 nType)
             : VQStatsInterface(nType)
-        {
-            pMQmonInterface = MQmon::Instance()->CreateInterface();
-            pMQmonInterface->m_pUserdata = this;
-        }
+        {}
         ~VQStatsTunnelEntry()
         {
-            if (pMQmonInterface)
-            {
-                delete pMQmonInterface;
-                pMQmonInterface = NULL;
-            }
-
             for (ftl::POSITION Pos = TunnelSubEntryMap.GetStartPosition(); Pos;)
                 delete TunnelSubEntryMap.GetNextValue(Pos);
             TunnelSubEntryMap.RemoveAll();
         }
 
-        CMQmonInterface* pMQmonInterface;
         VQStatsTunnelSubEntryMap TunnelSubEntryMap;
 #ifdef VQSTATS_DEBUG
         VQStatsTunnelEntryKey Key;

@@ -7,6 +7,8 @@
 #include "mqa_global.h"
 
 #include "ftlcollections.h"
+#include "timesec.h"
+
 
 namespace mqa {
 
@@ -22,10 +24,10 @@ namespace mqa {
     typedef void *FlowKeyPtr;
 
     struct StreamResult {
-        float     mos;
-        float     jitter;
-        char      streamType; //STREAMTYPE_T
-        char      codecType;
+        int        mos;
+        int        jitter;
+        char       streamType; //STREAMTYPE_T
+        short      codecType;
     };  // StreamResult
 
     typedef std::list<std::pair<FlowKeyPtr, StreamResult> >StreamResultSet;
@@ -38,9 +40,9 @@ namespace mqa {
 
     struct StreamEventHandler
     {
-        enum EVENT_T { EVT_STREAM_ACTIVATED = 0x01, EVT_STREAM_DISACTIVATED = 0x02 };
+        enum EVENT_T { EVT_STREAM_ACTIVATING = 0x01, EVT_STREAM_DEACTIVATING = 0x02 };
 
-        virtual bool handle(EVENT_T event, FlowKeyPtr&) = 0;
+        virtual bool handle(EVENT_T event, FlowKeyPtr) = 0;
     };
     struct ResultEventHandler
     {
@@ -51,6 +53,7 @@ namespace mqa {
     // It is not safe when accessed by multiple threads.
     struct Analyzer {
 
+        typedef bool (*PFN_OutputBlockCallback)(UINT32 nUserParm, UINT8 *pBlockData, UINT32 nBlockSize);
 
         //--------- configure instance -----------
 
@@ -62,13 +65,19 @@ namespace mqa {
 
         // Result handler can be set with an time interval
         // users can passively receive results
-        virtual void setResultEventHandler(ResultEventHandler *handler, unsigned int millisec) = 0;
+        virtual void setResultEventHandler(ResultEventHandler *handler, timeval& interval) = 0;
+
+        // VQStats Format
+        virtual void setResultOutputCallback(UINT32 nUserParm, PFN_OutputBlockCallback pOutput, timeval& interval) = 0;
 
         //--------- start to work -----------
 
         virtual bool start() = 0;
 
-        virtual bool feedPacket(char *ethernetHeader, size_t len, unsigned int timesec, unsigned int timeusec, int limID = -1) = 0;
+        virtual bool feedPacket(char *ethernetHeader, size_t len, timeval& timestamp, int limID = -1) = 0;
+
+        // process time to output results.
+        virtual void processTime(timeval& timestamp) = 0;
 
         // Or users may actively retrieve results
         virtual bool retrieveResults(StreamResultSet& results) = 0;
@@ -79,6 +88,7 @@ namespace mqa {
 
         // destroy the object
         virtual void release() = 0;
+        virtual ~Analyzer(){}
 
         //--------- Instance attributes -----------
 
@@ -88,6 +98,7 @@ namespace mqa {
 
     // if analyzer is singleton, return the old one.
     MQA_API Analyzer *Mqa_CreateAnalyzer(ENGINE_TYPE engine = ENGINE_TELCHM);
+
 } // namespace mqa
 
 #endif //MQA_MAQINTERFACE_H_

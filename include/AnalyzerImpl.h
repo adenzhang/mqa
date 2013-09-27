@@ -7,39 +7,30 @@
 #include "mqa_flowkeys.h"
 #include "mqa_flowentries.h"
 
-#include <WinSock2.h>
+#include "VQStatsRtsmDumper.h"
+#include "VQStatsKeyMap.h"
 
 namespace mqa {
 
-    class VQStatsKeyMap
+    struct RetrieveResultsVisitor
+        : public VQStatsKeyMapVisitor
     {
-    public:
-        VQStatsKeyMap();
-        ~VQStatsKeyMap();
+        StreamResultSet& results;
+        RetrieveResultsVisitor(StreamResultSet& results):results(results){}
 
-        // return true if a new flow
-        bool FindStreamSet(const StatsFrameParser& Parser,
-            CMQmonInterface*& pInterface, VQStatsStreamSetPtr& pStreamSet, VQStatsSubEntry*& SubEntry);
-
-        void PrintStats(std::ostream& os, const string& sPrefix, bool bDetailedHeaders);
-
-        static VQStatsConnSubEntryKey CreateConnSubEntryKey(const StatsFrameParser& Parser, bool* pSrcToDest = NULL);
-        static VQStatsConnEntry2Key CreateConnEntry2Key(const StatsFrameParser& Parser);
-        static VQStatsConnEntry1Key CreateConnEntry1Key(const StatsFrameParser& Parser);
-        static VQStatsTunnelSubEntryKey CreateTunnelSubEntryKey(const StatsFrameParser& Parser);
-        static VQStatsTunnelEntryKey CreateTunnelEntryKey(const StatsFrameParser& Parser);
-
-        //private:
-        VQStatsConnEntryTable m_ConnEntryTable;
-        VQStatsTunnelEntryTable m_GRETunnelEntryTable;
-        VQStatsTunnelEntryTable m_GTPTunnelEntryTable;
-
+        virtual bool visit(VQStatsSubEntry& e)
+        {
+            for(int i=0; i<2; ++i)
+                if( e.HasData(i) && e.BiDirects[i]->GetActiveStream()->retrieveResults() )
+                    results.push_back(std::make_pair(&e.BiFlowKeys[i], e.BiDirects[i]->GetActiveStream()->result));
+            return true;
+        }
     };
-
     class AnalyzerImpl
         :public Analyzer
     {
     public:
+        AnalyzerImpl();
 
         //--------- configure instance -----------
 
@@ -51,13 +42,17 @@ namespace mqa {
 
         // Result handler can be set with an time interval
         // users can passively receive results
-        virtual void setResultEventHandler(ResultEventHandler *handler, unsigned int millisec);
+        virtual void setResultEventHandler(ResultEventHandler *handler, timeval& interval);
 
+        virtual void setResultOutputCallback(UINT32 nUserParm, PFN_OutputBlockCallback pOutput, timeval& interval);
         //--------- start to work -----------
 
         virtual bool start();
 
-        virtual bool feedPacket(char *ethernetHeader, size_t len, unsigned int timesec, unsigned int timeusec, int limID = -1);
+        virtual bool feedPacket(char *ethernetHeader, size_t len, timeval& timestamp, int limID = -1);
+
+        // check timeout to output
+        virtual void processTime(timeval& timestamp);
 
         // Or users may actively retrieve results
         virtual bool retrieveResults(StreamResultSet& results);
@@ -79,8 +74,23 @@ namespace mqa {
         ENGINE_TYPE           _engineType;
         ResultEventHandler*   _resultHandler;
         StreamEventHandler*   _streamHandler;
-        UINT64                _resultInterval;
+        PFN_OutputBlockCallback _outputHandler;
+        UINT32                _outputParam;
+        timeval               _resultInterval; 
         VQStatsKeyMap         _vqStatsMap;
+
+        //-----
+        timeval               _lastResultTime;
+
+        VQStatsRtsmDumper     _rtsmDumper;
+
+        virtual void outputResults(timeval& t);
+
+    protected:
+        static bool VQStatsNotifyHandler(CMQmonInterface* pInterface, CMQmonStream* pStream, MQmonNotifyType nType, MQmonNotifyInfo* pInfo);
+        static void InitVQStats(LOGLEVEL_TYPE loglevel);
+        static void FiniVQStats(void);
+        static LONG g_nInstances;
     };
 
 } // namespace xtreme::mqa
