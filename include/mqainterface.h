@@ -97,7 +97,7 @@ namespace mqa {
     };  // Analyzer
 
     // if analyzer is singleton, return the old one.
-    MQA_API Analyzer *Mqa_CreateAnalyzer(ENGINE_TYPE engine = ENGINE_TELCHM);
+    MQA_API Analyzer *Mqa_CreateAnalyzer(ENGINE_TYPE engine = ENGINE_DRIVETEST);
 
 } // namespace mqa
 

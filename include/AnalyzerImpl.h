@@ -3,7 +3,8 @@
 
 #include "RtsdSupport.h"
 #include "StatsFrameParser.h"
-#include "mqmon.h"
+#include "MQmonIf.h"
+
 #include "mqa_flowkeys.h"
 #include "mqa_flowentries.h"
 
@@ -30,7 +31,7 @@ namespace mqa {
         :public Analyzer
     {
     public:
-        AnalyzerImpl();
+        AnalyzerImpl(ENGINE_TYPE);
 
         //--------- configure instance -----------
 

@@ -229,9 +229,9 @@ namespace mqa {
     {
         setPrevTime(t);
 
-        if(m_Interval > 0)
+        if((long)m_Interval > 0)
         {
-            if(m_SampleEndTime == 0)  // haven't sampled once.
+            if((long)m_SampleEndTime == 0)  // haven't sampled once.
             {
                 m_SampleEndTime = m_PrevTime + m_Interval;
             }

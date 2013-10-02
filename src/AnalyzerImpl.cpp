@@ -4,10 +4,10 @@
 
 #include "MqaAssert.h"
 
+
 namespace mqa {
 
 //////////////////////////////////  AnalyzerImpl ////////////////////////////////////////////////////
-
 
     bool AnalyzerImpl::VQStatsNotifyHandler(CMQmonInterface* pInterface, CMQmonStream* pStream, MQmonNotifyType nType, MQmonNotifyInfo* pInfo)
     {
@@ -29,66 +29,84 @@ namespace mqa {
                 }
                 // Find and create stream set
                 VQStatsStreamSetPtr pStreamSet;
-                FlowKey            *pFlowKey = NULL;
-                if (pStatsInterface->nType == LAYER_NONE) // conn
-                {
-                    VQStatsConnEntry1* pEntry1 = (VQStatsConnEntry1*)pInterface->m_pUserdata;
-                    // Entry Layer
-                    // Find or create conn entry2
-                    VQStatsConnEntry2Key Entry2Key(pInfo->activating.bIpv4, pInfo->activating.nIpSrc, pInfo->activating.nIpDst);
-                    VQStatsConnEntry2* pConnEntry2 = NULL;
-                    if (!pEntry1->ConnEntry2Map.Lookup(Entry2Key, pConnEntry2))
-                    {
-                        pConnEntry2 = new VQStatsConnEntry2();
-                        pEntry1->ConnEntry2Map.SetAt(Entry2Key, pConnEntry2);
-                    }
-
-                    // Check direction
-                    StatsIpAddr IpSrc(pInfo->activating.bIpv4, pInfo->activating.nIpSrc);
-                    bool bSrcToDest = (IpSrc == Entry2Key.ipSrc);
-                    const UINT16& nSrcPort = (bSrcToDest ? pInfo->activating.nSrcPort : pInfo->activating.nDstPort);
-                    const UINT16& nDstPort = (bSrcToDest ? pInfo->activating.nDstPort : pInfo->activating.nSrcPort);
-
-                    // Sub entry layer
-                    // Find or create tunnel sub entry
-                    VQStatsConnSubEntryKey SubEntryKey(nSrcPort, nDstPort, pInfo->activating.nTransProto);
-                    VQStatsConnSubEntry* pConnSubEntry = NULL;
-                    UINT8 nIdx = (bSrcToDest ? 0 : 1);
-                    if (pConnEntry2->ConnSubEntryMap.Lookup(SubEntryKey, pConnSubEntry))
-                    {
-                        // create a new flow
-                        //pConnSubEntry = new VQStatsConnSubEntry();
-                        //pConnEntry2->ConnSubEntryMap.SetAt(SubEntryKey, pConnSubEntry);
-                        ASSERTMSG1(pConnSubEntry->BiDirects[nIdx], "Stream exists already!");
-                        pConnSubEntry->BiDirects[nIdx].reset(new VQStatsStreamSet);
+                FlowKey            *pFlowKey = pInfo->bFlowId?(FlowKey*)pInfo->flowId:NULL;
+                if(pInfo->bFlowId) {
+                    if( pStatsInterface->userData ) {
+                        AnalyzerImpl    *analyzer = (AnalyzerImpl *)pStatsInterface->userData;
+                        VQStatsSubEntry *SubEntry = analyzer->_vqStatsMap.findFlow(pFlowKey);
+                        if(SubEntry) {
+                            int nIdx = pFlowKey == SubEntry->BiFlowKeys[0]?0:1;
+                            SubEntry->BiDirects[nIdx].reset(new VQStatsStreamSet);
+                            pStreamSet = SubEntry->BiDirects[nIdx];
+                        }else{
+                            dprintf(__FUNCTION__" error: Unable to find VQStatsSubEntry.\n");
+                            return false;
+                        }
                     }else{
-                        dprintf("exception! VQStatsConnSubEntry must be created already!");
+                        dprintf(__FUNCTION__" error: invalid AnalyzerImpl Ptr.\n");
+                        return false;
                     }
-                    pStreamSet = pConnSubEntry->BiDirects[nIdx];
-                    pFlowKey = pConnSubEntry->BiFlowKeys[nIdx];
-                }
-                else if (pStatsInterface->nType == LAYER_GRE || pStatsInterface->nType == LAYER_GTP) // tunnel
-                {
-                    VQStatsTunnelEntry* pTunnelEntry = (VQStatsTunnelEntry*)pInterface->m_pUserdata;
-                    // Sub entry layer
-                    // Find or create tunnel sub entry
-                    VQStatsTunnelSubEntryKey SubEntryKey(pInfo->activating.bIpv4, pInfo->activating.nIpSrc, pInfo->activating.nIpDst,
-                        pInfo->activating.nSrcPort, pInfo->activating.nDstPort, pInfo->activating.nTransProto);
-                    VQStatsTunnelSubEntry* pTunnelSubEntry = NULL;
-                    if (pTunnelEntry->TunnelSubEntryMap.Lookup(SubEntryKey, pTunnelSubEntry))
+                }else{
+                    if (pStatsInterface->nType == LAYER_NONE) // conn
                     {
-                        ASSERTMSG1(pTunnelSubEntry->BiDirects[0], "Tunneled Stream exists already!");
-                        pTunnelSubEntry->BiDirects[0].reset(new VQStatsStreamSet);
-                    }else{
-                        dprintf("exception! VQStatsTunnelSubEntry must be created already!");
+                        VQStatsConnEntry1* pEntry1 = (VQStatsConnEntry1*)pInterface->m_pUserdata;
+                        // Entry Layer
+                        // Find or create conn entry2
+                        VQStatsConnEntry2Key Entry2Key(pInfo->activating.bIpv4, pInfo->activating.nIpSrc, pInfo->activating.nIpDst);
+                        VQStatsConnEntry2* pConnEntry2 = NULL;
+                        if (!pEntry1->ConnEntry2Map.Lookup(Entry2Key, pConnEntry2))
+                        {
+                            pConnEntry2 = new VQStatsConnEntry2();
+                            pEntry1->ConnEntry2Map.SetAt(Entry2Key, pConnEntry2);
+                        }
+
+                        // Check direction
+                        StatsIpAddr IpSrc(pInfo->activating.bIpv4, pInfo->activating.nIpSrc);
+                        bool bSrcToDest = (IpSrc == Entry2Key.ipSrc);
+                        const UINT16& nSrcPort = (bSrcToDest ? pInfo->activating.nSrcPort : pInfo->activating.nDstPort);
+                        const UINT16& nDstPort = (bSrcToDest ? pInfo->activating.nDstPort : pInfo->activating.nSrcPort);
+
+                        // Sub entry layer
+                        // Find or create tunnel sub entry
+                        VQStatsConnSubEntryKey SubEntryKey(nSrcPort, nDstPort, pInfo->activating.nTransProto);
+                        VQStatsConnSubEntry* pConnSubEntry = NULL;
+                        UINT8 nIdx = (bSrcToDest ? 0 : 1);
+                        if (pConnEntry2->ConnSubEntryMap.Lookup(SubEntryKey, pConnSubEntry))
+                        {
+                            // create a new flow
+                            //pConnSubEntry = new VQStatsConnSubEntry();
+                            //pConnEntry2->ConnSubEntryMap.SetAt(SubEntryKey, pConnSubEntry);
+                            ASSERTMSG1(pConnSubEntry->BiDirects[nIdx], "Stream exists already!");
+                            pConnSubEntry->BiDirects[nIdx].reset(new VQStatsStreamSet);
+                        }else{
+                            dprintf("exception! VQStatsConnSubEntry must be created already!");
+                        }
+                        pStreamSet = pConnSubEntry->BiDirects[nIdx];
+                        pFlowKey = pConnSubEntry->BiFlowKeys[nIdx];
                     }
-                    pStreamSet = pTunnelSubEntry->BiDirects[0];
-                    pFlowKey = pTunnelSubEntry->BiFlowKeys[0];
-                }
-                else
-                {
-                    dprintf(__FUNCTION__" error: invalid interface.\n");
-                    return false;
+                    else if (pStatsInterface->nType == LAYER_GRE || pStatsInterface->nType == LAYER_GTP) // tunnel
+                    {
+                        VQStatsTunnelEntry* pTunnelEntry = (VQStatsTunnelEntry*)pInterface->m_pUserdata;
+                        // Sub entry layer
+                        // Find or create tunnel sub entry
+                        VQStatsTunnelSubEntryKey SubEntryKey(pInfo->activating.bIpv4, pInfo->activating.nIpSrc, pInfo->activating.nIpDst,
+                            pInfo->activating.nSrcPort, pInfo->activating.nDstPort, pInfo->activating.nTransProto);
+                        VQStatsTunnelSubEntry* pTunnelSubEntry = NULL;
+                        if (pTunnelEntry->TunnelSubEntryMap.Lookup(SubEntryKey, pTunnelSubEntry))
+                        {
+                            ASSERTMSG1(pTunnelSubEntry->BiDirects[0], "Tunneled Stream exists already!");
+                            pTunnelSubEntry->BiDirects[0].reset(new VQStatsStreamSet);
+                        }else{
+                            dprintf("exception! VQStatsTunnelSubEntry must be created already!");
+                        }
+                        pStreamSet = pTunnelSubEntry->BiDirects[0];
+                        pFlowKey = pTunnelSubEntry->BiFlowKeys[0];
+                    }
+                    else
+                    {
+                        dprintf(__FUNCTION__" error: invalid interface.\n");
+                        return false;
+                    }
                 }
                 if (!pStreamSet)
                 {
@@ -182,8 +200,8 @@ namespace mqa {
             MQmon::Instance()->Destroy();
     }
 
-    AnalyzerImpl::AnalyzerImpl()
-        : _streamHandler(NULL), _resultHandler(NULL), _outputHandler(NULL)
+    AnalyzerImpl::AnalyzerImpl(ENGINE_TYPE engine)
+        : _streamHandler(NULL), _resultHandler(NULL), _outputHandler(NULL), _engineType(engine)
     {}
 
     //--------- configure instance -----------
@@ -253,15 +271,21 @@ namespace mqa {
         VQStatsStreamSetPtr pStreamSet;
         bool                oldFlow;
         VQStatsSubEntry*    SubEntry;
-        oldFlow = _vqStatsMap.FindStreamSet(Parser, pInterface, pStreamSet, SubEntry);
+        int                 flowIdx;
+        oldFlow = _vqStatsMap.FindStreamSet(Parser, pInterface, pStreamSet, SubEntry,flowIdx);
         if(!oldFlow)  // new flow
             ((VQStatsInterface*)pInterface->m_pUserdata)->userData = this;
+
+        uintptr_t flowId=0;
+        if(_engineType == ENGINE_DRIVETEST) {
+            flowId = (uintptr_t) &SubEntry->BiFlowKeys[flowIdx];
+        }
 
         // Set ip header value, and feed
         CMQmonFrameInfo Info;
         SetMQmonFrameInfo(timestamp, Parser, Info);
 
-        bool   succ = false;
+        bool   succ = true;
         // Indicate stream
         bool bIndicated = false;
         if (pStreamSet)
@@ -274,11 +298,18 @@ namespace mqa {
                 {
                     bIndicated = true;
 #ifdef VQSTATS_MULTITHREAD
-                    if(bMultiThread)
+                    if(bMultiThread){
                         succ = m_TaskEngine->sendTask(pStream, Info, Parser.nDataLength, (void*)Parser.pData, &SubEntry->threadIdx, !oldFlow);
-                    else 
+                    }else 
 #endif
-                        succ = !pStream->IndicatePacket(Parser.pData, Parser.nDataLength, Info);
+                    {
+                        if(_engineType == ENGINE_DRIVETEST) {
+                            pStream->IndicateRtpPacket(Parser.pData+Parser.nAppLayerOffset, Parser.nDataLength-Parser.nAppLayerOffset, timestamp.tv_sec, timestamp.tv_usec*1000);
+                        }else
+                        {
+                            succ = pStream->IndicatePacket(Parser.pData, Parser.nDataLength, Info);
+                        }
+                    }
                     if(!succ)
                     {
                         // dprintf("Stream IndicatePacket error.\n");
@@ -293,11 +324,17 @@ namespace mqa {
         {
             // No stream yet, indicate to interface
 #ifdef VQSTATS_MULTITHREAD
-            if(bMultiThread)
+            if(bMultiThread){
                 succ = m_TaskEngine->sendTask(pInterface, Info, Parser.nDataLength, (void*)Parser.pData, &SubEntry->threadIdx, !oldFlow);
-            else 
+            }else
 #endif
-                succ = pInterface->IndicatePacket(Parser.pData, Parser.nDataLength, Info);
+            {
+                if(_engineType == ENGINE_DRIVETEST) {
+                    succ = pInterface->IndicateRtpPacket(flowId, Parser.pData+Parser.nAppLayerOffset, Parser.nDataLength-Parser.nAppLayerOffset, timestamp.tv_sec, timestamp.tv_usec*1000);
+                }else{
+                    succ = pInterface->IndicatePacket(Parser.pData, Parser.nDataLength, Info);
+                }
+            }
             if(!succ)
             {
                 //dprintf("Interface IndicatePacket error.\n");
@@ -346,8 +383,8 @@ namespace mqa {
 
     Analyzer *Mqa_CreateAnalyzer(ENGINE_TYPE engine)
     {
-        if( engine == ENGINE_TELCHM ) {
-            return new AnalyzerImpl();
+        if( engine == ENGINE_TELCHM || engine == ENGINE_DRIVETEST ) {
+            return new AnalyzerImpl(engine);
         }
         return NULL;
     }

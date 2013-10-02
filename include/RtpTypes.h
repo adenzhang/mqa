@@ -1,9 +1,13 @@
 #ifndef MQA_RTPTYPES_H_
 #define MQA_RTPTYPES_H_
 
+#include "mqa_global.h"
 #include "mqa_shared.h"
 
 namespace mqa {
+
+    enum {MAX_RTP_PAYLOAD_TYPE  = 128 };
+
 
     typedef enum tagRTPMediaType
     {
@@ -73,9 +77,16 @@ namespace mqa {
         RTPCODEC_UNSPECIFIC  = 255
     } RTPCodec;
 
+    typedef struct
+    {
+        RTPCodec eCodec;
+        char     szName[32];
+        UINT32   nClockRate;
+    } RTPPayloadCodecInfo;
+
     MQA_API bool RTPCodec2RTPMediaType(const RTPCodec codec, RTPMediaType& mediaType, RTPStreamType& streamType) ;
     MQA_API int RTPCodec2CodecFrameSize(const RTPCodec codec, int* packetSize=0);
-    MQA_API int RTPCodec2Frequency(const RTPCodec codec);
+    MQA_API UINT32 RTPCodec2ClockRate(const RTPCodec codec);
 
 }  // namespace mqa
 

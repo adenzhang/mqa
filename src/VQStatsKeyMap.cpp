@@ -85,7 +85,7 @@ namespace mqa {
 
 
     bool VQStatsKeyMap::FindStreamSet(const StatsFrameParser& Parser,
-        CMQmonInterface*& pInterface, VQStatsStreamSetPtr& pStreamSet, VQStatsSubEntry*& SubEntry)
+        CMQmonInterface*& pInterface, VQStatsStreamSetPtr& pStreamSet, VQStatsSubEntry*& SubEntry, int& flowIdx)
     {
         bool ret = true;  // whether stream exists already.
         // If tunnel
@@ -114,6 +114,7 @@ namespace mqa {
             // Check direction
             StatsIpAddr IpSrc(Parser.IsIpv4(false), Parser.SrcIp(false));
             bool bSrcToDest = (IpSrc == Entry2Key.ipSrc);
+            flowIdx = bSrcToDest?0:1;
 
             // Sub entry layer
             // Find conn sub entry
@@ -124,12 +125,14 @@ namespace mqa {
                 UINT8 nIdx = (bSrcToDest ? 0 : 1);
                 pStreamSet = pConnSubEntry->BiDirects[nIdx];
             }else{
-                SubEntry = pConnSubEntry = new VQStatsConnSubEntry(VQStatsConnKey(Entry2Key, SubEntryKey, Entry1Key));
+                pConnSubEntry = new VQStatsConnSubEntry(VQStatsConnKey(Entry2Key, SubEntryKey, Entry1Key));
                 pConnEntry2->ConnSubEntryMap.SetAt(SubEntryKey, pConnSubEntry);
                 ret = false;
             }
+            SubEntry = pConnSubEntry;
         }else
         {
+            flowIdx = 0;
             // GRE or GTP
             VQStatsTunnelEntryTable* pTunnelEntryTable = (Parser.nTunnelType == LAYER_GTP)
                 ? &m_GTPTunnelEntryTable : &m_GRETunnelEntryTable;
@@ -153,14 +156,14 @@ namespace mqa {
             if (pTunnelEntry->TunnelSubEntryMap.Lookup(SubEntryKey, pTunnelSubEntry))
                 pStreamSet = pTunnelSubEntry->BiDirects[0];
             else{
-                SubEntry = pTunnelSubEntry = new VQStatsTunnelSubEntry(VQStatsTunnelKey(EntryKey, SubEntryKey));
+                pTunnelSubEntry = new VQStatsTunnelSubEntry(VQStatsTunnelKey(EntryKey, SubEntryKey));
                 pTunnelEntry->TunnelSubEntryMap.SetAt(SubEntryKey, pTunnelSubEntry);
                 ret = false;
             }
+            SubEntry = pTunnelSubEntry;
         }
 
-
-        return true;
+        return ret;
     }
 
     void VQStatsKeyMap::PrintStats(std::ostream& os, const string& sPrefix, bool bDetailedHeaders)

@@ -27,8 +27,18 @@ namespace mqa {
 
         // return true if a new flow
         bool FindStreamSet(const StatsFrameParser& Parser,
-            CMQmonInterface*& pInterface, VQStatsStreamSetPtr& pStreamSet, VQStatsSubEntry*& SubEntry);
+            CMQmonInterface*& pInterface, VQStatsStreamSetPtr& pStreamSet, VQStatsSubEntry*& SubEntry, int& flowIdx);
 
+        VQStatsSubEntry *findFlow(FlowKey *akey) {
+            VQStatsSubEntry * ret = NULL;
+            if(akey->isTunnel) {
+                if( ret = m_GRETunnelEntryTable.findflow(*akey->pTunnelKey) ) return ret;
+                else if( ret = m_GTPTunnelEntryTable.findflow(*akey->pTunnelKey) ) return ret;
+                else return ret;
+            }else{
+                return m_ConnEntryTable.findflow(*akey->pConnKey);
+            }
+        }
         void PrintStats(std::ostream& os, const string& sPrefix, bool bDetailedHeaders);
 
         static VQStatsConnSubEntryKey CreateConnSubEntryKey(const StatsFrameParser& Parser, bool* pSrcToDest = NULL);

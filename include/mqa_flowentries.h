@@ -7,7 +7,7 @@
 #include <cassert>
 #include <boost/shared_ptr.hpp>
 
-#include "mqmon.h"
+#include "MQmonIf.h"
 #include "ftlcollections.h"
 #include "mqa_flowkeys.h"
 #include "mqainterface.h"

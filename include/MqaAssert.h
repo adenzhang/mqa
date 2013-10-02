@@ -1,6 +1,8 @@
 #ifndef MQA_MQASEERT_H_
 #define MQA_MQASEERT_H_
 
+#include <assert.h>
+#include <stdio.h>
 
 inline void dprintf(const char *s, ...)
 {

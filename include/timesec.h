@@ -27,9 +27,10 @@ namespace ftl{
             nsec = a-sec;
             return *this;
         }
-        template < typename INTTYPE >
-        operator INTTYPE () {
-            return INTTYPE(sec + nsec * SUBSECOND);
+        // convert to long in SUBSECOND
+        template <typename INTTYPE>
+        operator INTTYPE() {
+            return (INTTYPE)sec*SUBSECOND+nsec;
         }
         template < size_t ANOTHERSUB >
         timesec(const timesec<ANOTHERSUB> a):sec(a.sec), nsec(ANOTHERSUB == SUBSECOND?a.nsec:(double)a.nsec*ANOTHERSUB/SUBSECOND) {}

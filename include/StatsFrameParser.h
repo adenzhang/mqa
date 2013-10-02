@@ -119,15 +119,16 @@ namespace mqa {
 
         const UINT8* pData;
         UINT16 nDataLength;
+        UINT16 nAppLayerOffset;
 
         UINT8 nLimPort;         // LIM port number of classified traffic
-        UINT8 nTunnelType;      // IP and Tunnel type 
+        UINT8 nTunnelType;      // IP and Tunnel type LAYER_GRE, LAYER_GTP
 
         UINT8 nVLAN;
         UINT8 nMPLS;
         UINT32 aVLANMPLSIds[RTSD_MAX_VLANMPLS_IDS];
 
-        UINT32 nTEI;            // Tunnel identifier for GTP/GRE
+        UINT32 nTEI;            // Tunnel identifier for GTP/GRE, or 0 by default
 
         StatsIpTransInfo LowerInfo;
         StatsIpTransInfo UpperInfo;

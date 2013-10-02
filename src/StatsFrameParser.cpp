@@ -311,6 +311,8 @@ bool StatsFrameParser::ParseTrans(UINT16& nOffset, bool bUpper)
             {
                 if (!ParseGTP(nOffset))
                     return false;
+            }else{
+                nOffset += 8; // to payload
             }
             break;
         }
@@ -321,10 +323,18 @@ bool StatsFrameParser::ParseTrans(UINT16& nOffset, bool bUpper)
             break;
         }
     case IPV4_PROTO_TCP:
+        {
+            Info.TransInfo.nSrcPort = *(UINT16*)(pData + nOffset);
+            Info.TransInfo.nDestPort = *(UINT16*)(pData + nOffset + 2);
+            UINT8 dataOffset = nOffset + 12;
+            nOffset += dataOffset;
+            break;
+        }
     case IPV4_PROTO_SCTP:
         {
             Info.TransInfo.nSrcPort = *(UINT16*)(pData + nOffset);
             Info.TransInfo.nDestPort = *(UINT16*)(pData + nOffset + 2);
+            nOffset += 8;
             break;
         }
     default:
@@ -448,6 +458,7 @@ bool StatsFrameParser::ParseFrame(const UINT8 *pFrame)
         nLimPort = pHeader->limInfo[0] & 0x1F;
 
     UINT16 nOffset = 12;   // skip Ethernet addresses
+    nAppLayerOffset = 0;
 
     // Get VLAN/MPLS Ids
     if (!ParseVLANMPLSIds(nOffset))
@@ -456,6 +467,7 @@ bool StatsFrameParser::ParseFrame(const UINT8 *pFrame)
     if (!ParseLower(nOffset))
         return false;
 
+    nAppLayerOffset = nOffset;
     return true;
 }
 bool StatsFrameParser::ParseFrame(const UINT8* pFrame, UINT16 len, UINT8 limPort) // ethernet header
@@ -465,6 +477,7 @@ bool StatsFrameParser::ParseFrame(const UINT8* pFrame, UINT16 len, UINT8 limPort
     nLimPort = limPort;
 
     UINT16 nOffset = 0;   // no skip Ethernet addresses
+    nAppLayerOffset = 0;
 
     // Get VLAN/MPLS Ids
     if (!ParseVLANMPLSIds(nOffset))
@@ -473,6 +486,7 @@ bool StatsFrameParser::ParseFrame(const UINT8* pFrame, UINT16 len, UINT8 limPort
     if (!ParseLower(nOffset))
         return false;
 
+    nAppLayerOffset = nOffset;
     return true;
 }
 } // namespace mqa

@@ -2,9 +2,9 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="8.00"
-	Name="mqa"
-	ProjectGUID="{69A087BB-7368-4212-9670-0E5D100A08AC}"
-	RootNamespace="mqa"
+	Name="mqatest"
+	ProjectGUID="{C7C0E4DB-ED13-481A-8E69-A40417DC7BD3}"
+	RootNamespace="mqatest"
 	Keyword="Win32Proj"
 	>
 	<Platforms>
@@ -22,7 +22,7 @@
 			Name="Debug|Win32"
 			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="2"
+			ConfigurationType="1"
 			CharacterSet="1"
 			>
 			<Tool
@@ -43,12 +43,12 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\src;..\include;..\..\..\internal_release\include;..\..\..\..\..\AnalyzerCommon\Include;..\..\MQmon"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;MQA_EXPORTS"
+				AdditionalIncludeDirectories="src;..\src;..\include;..\..\..\internal_release\include;..\..\..\..\..\AnalyzerCommon\Include"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
-				UsePrecompiledHeader="2"
+				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="4"
@@ -65,8 +65,9 @@
 			<Tool
 				Name="VCLinkerTool"
 				LinkIncremental="2"
+				AdditionalLibraryDirectories="..\..\..\internal_release\lib"
 				GenerateDebugInformation="true"
-				SubSystem="2"
+				SubSystem="1"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -98,7 +99,7 @@
 			Name="Debug|x64"
 			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
 			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
-			ConfigurationType="2"
+			ConfigurationType="1"
 			CharacterSet="1"
 			>
 			<Tool
@@ -120,12 +121,12 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\src;..\include;..\..\..\internal_release\include;..\..\..\..\..\AnalyzerCommon\Include;..\..\MQmon"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;MQA_EXPORTS"
+				AdditionalIncludeDirectories="src;..\src;..\include;..\..\..\internal_release\include;..\..\..\..\..\AnalyzerCommon\Include"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
-				UsePrecompiledHeader="2"
+				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="3"
@@ -142,8 +143,9 @@
 			<Tool
 				Name="VCLinkerTool"
 				LinkIncremental="2"
+				AdditionalLibraryDirectories="..\..\..\internal_release\lib"
 				GenerateDebugInformation="true"
-				SubSystem="2"
+				SubSystem="1"
 				TargetMachine="17"
 			/>
 			<Tool
@@ -175,7 +177,7 @@
 			Name="Release|Win32"
 			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="2"
+			ConfigurationType="1"
 			CharacterSet="1"
 			WholeProgramOptimization="1"
 			>
@@ -196,8 +198,8 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="..\src;..\include;..\AnalyzerCommon"
-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;MQA_EXPORTS"
+				AdditionalIncludeDirectories="src;..\src;..\include;..\AnalyzerCommon;&quot;D:\onprogram\clib\boost-1_53\include&quot;"
+				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
@@ -215,9 +217,11 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="ws2_32.lib"
 				LinkIncremental="1"
+				AdditionalLibraryDirectories="..\..\..\internal_release\lib;&quot;D:\onprogram\clib\boost-1_53\lib&quot;"
 				GenerateDebugInformation="true"
-				SubSystem="2"
+				SubSystem="1"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
 				TargetMachine="1"
@@ -251,7 +255,7 @@
 			Name="Release|x64"
 			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
 			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
-			ConfigurationType="2"
+			ConfigurationType="1"
 			CharacterSet="1"
 			WholeProgramOptimization="1"
 			>
@@ -273,8 +277,8 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="..\src;..\include;..\..\..\internal_release\include;..\..\..\..\..\AnalyzerCommon\Include"
-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;MQA_EXPORTS"
+				AdditionalIncludeDirectories="src;..\src;..\include;..\..\..\internal_release\include;..\..\..\..\..\AnalyzerCommon\Include"
+				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
@@ -293,8 +297,9 @@
 			<Tool
 				Name="VCLinkerTool"
 				LinkIncremental="1"
+				AdditionalLibraryDirectories="..\..\..\internal_release\lib"
 				GenerateDebugInformation="true"
-				SubSystem="2"
+				SubSystem="1"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
 				TargetMachine="17"
@@ -334,44 +339,12 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\mqa.cpp"
+				RelativePath=".\mqatest.cpp"
 				>
 			</File>
 			<File
 				RelativePath=".\stdafx.cpp"
 				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						UsePrecompiledHeader="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						UsePrecompiledHeader="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						UsePrecompiledHeader="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						UsePrecompiledHeader="1"
-					/>
-				</FileConfiguration>
 			</File>
 		</Filter>
 		<Filter
@@ -394,39 +367,59 @@
 			Name="src"
 			>
 			<File
-				RelativePath="..\src\AnalyzerImpl.cpp"
+				RelativePath=".\src\MainInstance.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\src\MQmonIf.cpp"
+				RelativePath=".\src\ManualParser.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						ObjectFile="$(IntDir)\$(InputName)1.obj"
+						XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						ObjectFile="$(IntDir)\$(InputName)1.obj"
+						XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						ObjectFile="$(IntDir)\$(InputName)1.obj"
+						XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						ObjectFile="$(IntDir)\$(InputName)1.obj"
+						XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\src\OptionConfig.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\src\RtpPacketParser.cpp"
+				RelativePath=".\src\PcapReader.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\src\RtpStream.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\src\RtpStreamManager.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\src\RtpTypes.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\src\StatsFrameParser.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\src\VQStatsKeyMap.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\src\VQStatsRtsmDumper.cpp"
+				RelativePath=".\src\Utility.cpp"
 				>
 			</File>
 		</Filter>
@@ -434,79 +427,23 @@
 			Name="include"
 			>
 			<File
-				RelativePath="..\include\AnalyzerImpl.h"
+				RelativePath=".\src\ManualParser.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\classifyconsts.h"
+				RelativePath=".\src\OptionConfig.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\ftlcollections.h"
+				RelativePath=".\src\PcapReader.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\mqa_flowentries.h"
+				RelativePath=".\src\stdint.h"
 				>
 			</File>
 			<File
-				RelativePath="..\include\mqa_flowkeys.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\mqa_global.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\mqa_shared.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\MqaAssert.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\mqainterface.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\MQmonIf.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\PacketParser.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\RtpPacketParser.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\RtpStream.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\RtpStreamManager.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\RtpTypes.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\StatsFrameParser.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\timesec.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\VQStatsKeyMap.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\VQStatsRtsmDumper.h"
+				RelativePath=".\src\Utility.h"
 				>
 			</File>
 		</Filter>
