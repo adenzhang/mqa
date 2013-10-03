@@ -330,7 +330,7 @@ namespace mqa {
 #endif
             {
                 if(_engineType == ENGINE_DRIVETEST) {
-                    succ = pInterface->IndicateRtpPacket(flowId, Parser.pData+Parser.nAppLayerOffset, Parser.nDataLength-Parser.nAppLayerOffset, timestamp.tv_sec, timestamp.tv_usec*1000);
+                    succ = pInterface->IndicateRtpPacket(flowId, Parser.pData+Parser.nAppLayerOffset, Parser.nDataLength-Parser.nAppLayerOffset, timestamp.tv_sec, timestamp.tv_usec*1000, NULL);
                 }else{
                     succ = pInterface->IndicatePacket(Parser.pData, Parser.nDataLength, Info);
                 }

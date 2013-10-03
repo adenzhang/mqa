@@ -1,7 +1,7 @@
 #include <boost/program_options.hpp>
 #include <boost/lexical_cast.hpp>
 #include <iostream>
-#include "Utility.h"
+#include "LogUtility.h"
 #include "OptionConfig.h"
 
 using namespace std;

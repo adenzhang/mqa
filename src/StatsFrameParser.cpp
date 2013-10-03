@@ -135,6 +135,8 @@ bool StatsFrameParser::ParseIpv4(UINT16& nOffset, bool bUpper)
     // Get IP header length
     UINT8 nIpHeaderLength = (pData[nOffset] & 0x0F) << 2;
     UINT16 nIpLength = ntohs(*((UINT16*)(pData + nOffset + 2))); // Including IP header
+    Info.IpInfo.nIpHeaderLength = nIpHeaderLength;
+    Info.IpInfo.nIpLength = nIpLength;
 
     // Get Transport related info
     Info.TransInfo.nTransOffset = nOffset + nIpHeaderLength;
@@ -273,6 +275,8 @@ bool StatsFrameParser::ParseIpv6(UINT16& nOffset, bool bUpper)
     // Get IP header length
     UINT8 nIpHeaderLength = pCurr - (pData + nOffset);
     UINT16 nIpLength = ntohs(*((UINT16*)(pData + nOffset + 4))) + IPV6_HDR_LEN; // Including IP header
+    Info.IpInfo.nIpHeaderLength = nIpHeaderLength;
+    Info.IpInfo.nIpLength = nIpLength;
 
     // Get Transport related info
     Info.TransInfo.nTransOffset = nOffset + nIpHeaderLength;
@@ -303,8 +307,8 @@ bool StatsFrameParser::ParseTrans(UINT16& nOffset, bool bUpper)
     {
     case IPV4_PROTO_UDP:
         {
-            Info.TransInfo.nSrcPort = *(UINT16*)(pData + nOffset);
-            Info.TransInfo.nDestPort = *(UINT16*)(pData + nOffset + 2);
+            Info.TransInfo.nSrcPort = ntohs(*(UINT16*)(pData + nOffset));
+            Info.TransInfo.nDestPort = ntohs(*(UINT16*)(pData + nOffset + 2));
             if (!bUpper
                 && (Info.TransInfo.nSrcPort == UDP_PORT_GTPU_SWAP
                 || Info.TransInfo.nDestPort == UDP_PORT_GTPU_SWAP))
@@ -312,7 +316,8 @@ bool StatsFrameParser::ParseTrans(UINT16& nOffset, bool bUpper)
                 if (!ParseGTP(nOffset))
                     return false;
             }else{
-                nOffset += 8; // to payload
+                Info.TransInfo.nTransHeaderLength = 8;
+                nOffset += Info.TransInfo.nTransHeaderLength; // to payload
             }
             break;
         }
@@ -324,16 +329,17 @@ bool StatsFrameParser::ParseTrans(UINT16& nOffset, bool bUpper)
         }
     case IPV4_PROTO_TCP:
         {
-            Info.TransInfo.nSrcPort = *(UINT16*)(pData + nOffset);
-            Info.TransInfo.nDestPort = *(UINT16*)(pData + nOffset + 2);
-            UINT8 dataOffset = nOffset + 12;
-            nOffset += dataOffset;
+            Info.TransInfo.nSrcPort = ntohs(*(UINT16*)(pData + nOffset));
+            Info.TransInfo.nDestPort = ntohs(*(UINT16*)(pData + nOffset + 2));
+            UINT8 dataOffset = nOffset + 12; // Data offset field: specifies the size of the TCP header in 32-bit words
+            Info.TransInfo.nTransHeaderLength = ((*(UINT8*)(pData+dataOffset)) >> 4)  << 2;
+            nOffset += Info.TransInfo.nTransHeaderLength;
             break;
         }
     case IPV4_PROTO_SCTP:
         {
-            Info.TransInfo.nSrcPort = *(UINT16*)(pData + nOffset);
-            Info.TransInfo.nDestPort = *(UINT16*)(pData + nOffset + 2);
+            Info.TransInfo.nSrcPort = ntohs(*(UINT16*)(pData + nOffset));
+            Info.TransInfo.nDestPort = ntohs(*(UINT16*)(pData + nOffset + 2));
             nOffset += 8;
             break;
         }
@@ -476,7 +482,7 @@ bool StatsFrameParser::ParseFrame(const UINT8* pFrame, UINT16 len, UINT8 limPort
     nDataLength = len;
     nLimPort = limPort;
 
-    UINT16 nOffset = 0;   // no skip Ethernet addresses
+    UINT16 nOffset = 12;   // skip Ethernet addresses
     nAppLayerOffset = 0;
 
     // Get VLAN/MPLS Ids

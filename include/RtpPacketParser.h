@@ -7,7 +7,12 @@ namespace mqa {
     struct RtpPacketParser 
         : public PacketParser
     {
-        RtpPacketParser(const char *buf=NULL, int len=0, PacketParser *lower=0): PacketParser(buf, len, kRTP_PACKET, lower) {}
+        RtpPacketParser(const char *buf=NULL, int len=0, PacketParser *lower=0)
+            : PacketParser(buf, len, kRTP_PACKET, lower) 
+            , payloadType(0), sequenceNum(0), timestamp(0), ssrc(0)
+            , nHeaderLength(0)
+            , ver(0), nCC(0)
+        {}
 
         UINT8     payloadType;
         UINT16    sequenceNum;

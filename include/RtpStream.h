@@ -24,14 +24,18 @@ namespace mqa {
         // all internal variables will be reset if RTP stream is detected.
         virtual bool DetectStream() = 0;
 
+        // step 1: calculate one way delay
         // calculate results after setting above parameters
         // return time in second
         virtual ftl::timenano CalculateOneWayDelay() = 0;
 
-        virtual float CalculatePacketLossRate() = 0;
+        // step 2: calculate loss rate
+        virtual float CalculatePacketLossRate(UINT32& nPackets) = 0;
 
+        // step 3: calculate jitter
         virtual ftl::timenano CalculateJitter() = 0;
 
+        // step 4: calculate MOS & jitter
         virtual bool CalculateMOS(float& mos, float& rfactor) = 0;
 
     };

@@ -1,4 +1,4 @@
-#include "ManualParser.h"
+#include "ManualParser_.h"
 #include <iostream>
 #include <hash_map>
 using namespace std;
@@ -1380,6 +1380,9 @@ bool CMQmonFrameInfo::Parse(uint8_t* pFrame, uint16_t nFrameLength)
                     }
                 }
             }
+        }else{
+            nAppLayerOffset = nBitOffset/8+4;
+            nAppLayerLen = nFrameLength - nAppLayerOffset;
         }
     }
     else if (nProtocolLower == CU_PROTOCOL_TYPE_TCP) // TCP

@@ -13,6 +13,12 @@ namespace mqa {
 
     struct MQmonPriv
     {
+        MQmonPriv()
+            : handler(NULL)
+            , nNotifyMask(0)
+            , nLogLevel(0)
+            , nProvider(MQMON_DRIVETEST)
+        {}
         MQmonNotifyHandler handler;
         UINT8 nNotifyMask;
         int nLogLevel;
@@ -56,12 +62,15 @@ namespace mqa {
         {
             if(!rtpStream->IsValidStream()) return false;
             rtpStream->CalculateOneWayDelay();
-            Metrics.Jitter = rtpStream->CalculateJitter();
-            Metrics.fLossRate = rtpStream->CalculatePacketLossRate();
-            float jitter, mos;
-            if(! rtpStream->CalculateMOS(mos, jitter))
+            UINT32 nPackets;
+            Metrics.Jitter = rtpStream->CalculateJitter().as<float>();
+            Metrics.Jitter /= 1000; // to micro-sec
+            Metrics.fLossRate = rtpStream->CalculatePacketLossRate(nPackets);
+            Metrics.nPackets = nPackets;
+            float rfactor, mos;
+            if(! rtpStream->CalculateMOS(mos, rfactor))
                 return false;
-            Metrics.Jitter = jitter;
+            Metrics.RFactor = rfactor;
             Metrics.MOS = mos;
             return true;
         }
@@ -86,7 +95,7 @@ namespace mqa {
         {
             streamMap.RemoveKey(flowId);
         }
-        bool IndicateRtpPacket(uintptr_t flowId, const UINT8* pPkt, UINT16 pPktLength, UINT32 timeSec, UINT32 timeNSec)
+         MQmonNotifyType IndicateRtpPacket(uintptr_t flowId, const UINT8* pPkt, UINT16 pPktLength, UINT32 timeSec, UINT32 timeNSec, CMQmonStream** ppStream)
         {
             CMQmonStreamDt *pStream=NULL;
             if(!streamMap.Lookup(flowId, pStream)){
@@ -94,7 +103,7 @@ namespace mqa {
                 streamMap.SetAt(flowId, pStream);
             }
             if(!pStream->IndicateRtpPacket(pPkt, pPktLength, timeSec, timeNSec)) 
-                return false;
+                return MQMON_NOTIFY_NORTP;
             if(!pStream->IsValidStream()) {
                 if( pStream->DetectStream() ) {
                     if(mon->priv->handler) {
@@ -103,10 +112,12 @@ namespace mqa {
                         info.flowId = flowId;
                         mon->priv->handler(this, pStream, MQMON_NOTIFY_ACTIVATING, &info);
                     }
+                    if(ppStream) *ppStream = pStream;
+                    return MQMON_NOTIFY_ACTIVATING;
                 }
             }
             // detect stream close. as it's time consuming. so usually donot detect it.
-            return true;
+            return MQMON_NOTIFY_RTP;
         }
 
         virtual bool GetMetrics(CMQmonMetrics& Metrics){
@@ -125,7 +136,7 @@ namespace mqa {
     }
     MQmon* MQmon::Instance()
     {
-        MQmon  _THIS;
+        static MQmon  _THIS;
         
         return &_THIS;;
     }

@@ -8,9 +8,17 @@
 
 namespace mqa {
 
+    struct RtpPacketInfo:
+        public RtpPacketParser
+    {
+        RtpPacketInfo(RtpPacketParser p, ftl::timenano& t)
+            : RtpPacketParser(p), capTime(t)
+        {}
+        ftl::timenano capTime; // capture time;
+    };
     struct RtpPacketSorter
     {
-        bool operator()(RtpPacketParser& a, RtpPacketParser& b) {
+        bool operator()(RtpPacketInfo& a, RtpPacketInfo& b) {
             return a.sequenceNum < b.sequenceNum;
         }
     };
@@ -19,7 +27,7 @@ namespace mqa {
     {
         bool          bValidStream;
 
-        UINT32 prevTx, currTx;
+        UINT32        prevTx, currTx;
         ftl::timenano prevRx, currRx;
 
         ftl::timenano currDelay, prevDelay;
@@ -36,7 +44,7 @@ namespace mqa {
 
         // following are used to detect stream
         const int NLASTPACKETS;
-        typedef std::list<RtpPacketParser>    PacketList;
+        typedef std::list<RtpPacketInfo>    PacketList;
         PacketList                    lastPackets;  // save the last several packets.
 
         RtpStreamImpl() 
@@ -46,10 +54,11 @@ namespace mqa {
             , currDelay(0), prevDelay(0)
             , currJitter(0), prevJitter(0)
             , currMOS(0), prevMOS(0)
+            , nMinSeqNum(0), nMaxSeqNum(0)
         {
         }
 
-        void pushPacket(RtpPacketParser& p) {
+        void pushPacket(RtpPacketInfo& p) {
             lastPackets.push_back(p);
             while(lastPackets.size() > NLASTPACKETS) {
                 lastPackets.pop_front();
@@ -61,7 +70,7 @@ namespace mqa {
                 bValidStream = false;
                 return false;
             }
-            pushPacket(packet);
+            pushPacket(RtpPacketInfo(packet, captureTime));
 
             currRx = captureTime;
             currTx = packet.timestamp;
@@ -106,11 +115,15 @@ namespace mqa {
                 nClockRate = RTPCodec2ClockRate(codecType);
                 nRecvPackts = NLASTPACKETS;
             }
+            prev--;
+            prevTx = prev->timestamp;
+            prevRx = prev->capTime;
             return true;
         }
-        float CalculatePacketLossRate()
+        float CalculatePacketLossRate(UINT32& nPackets)
         {
-            return float(nRecvPackts)/(nMaxSeqNum-nMinSeqNum);
+            nPackets = nRecvPackts;
+            return float(nRecvPackts-(nMaxSeqNum-nMinSeqNum))/(nMaxSeqNum-nMinSeqNum);
         }
 
         ftl::timenano CalculateOneWayDelay()
@@ -121,6 +134,8 @@ namespace mqa {
             // calculate current delay
             timenano  dCapture = currRx - prevRx;
             UINT32    dCountTx  = currTx - prevTx;
+            prevRx = currRx;
+            prevTx = currTx;
 
             timenano  dTimePacket = timenano.kSUBSEC/nClockRate*dCountTx;  // convert to nano-second
 
@@ -133,14 +148,14 @@ namespace mqa {
         {
             prevJitter = currJitter;
             if(currDelay<0) currDelay = - currDelay;
-            currJitter = prevJitter + (currDelay-prevJitter);
+            currJitter = prevJitter + (currDelay-prevJitter)*(1.0/16);
             return currJitter;
         }
 
         bool CalculateMOS(float& mos, float& rfactor)
         {
             // todo
-            return 0;
+            return true;
         }
     };
 

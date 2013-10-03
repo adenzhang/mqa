@@ -43,7 +43,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="src;..\src;..\include;..\..\..\internal_release\include;..\..\..\..\..\AnalyzerCommon\Include"
+				AdditionalIncludeDirectories="src;..\src;..\include;..\AnalyzerCommon;&quot;D:\onprogram\clib\boost-1_53\include&quot;"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -64,8 +64,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="ws2_32.lib mqa.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="..\..\..\internal_release\lib"
+				AdditionalLibraryDirectories="..\..\..\internal_release\lib;&quot;D:\onprogram\clib\boost-1_53\lib&quot;;&quot;$(ConfigurationName)&quot;"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="1"
@@ -217,9 +218,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="ws2_32.lib"
+				AdditionalDependencies="ws2_32.lib mqa.lib"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="..\..\..\internal_release\lib;&quot;D:\onprogram\clib\boost-1_53\lib&quot;"
+				AdditionalLibraryDirectories="..\..\..\internal_release\lib;&quot;D:\onprogram\clib\boost-1_53\lib&quot;;&quot;$(ConfigurationName)&quot;"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				OptimizeReferences="2"
@@ -367,11 +368,15 @@
 			Name="src"
 			>
 			<File
+				RelativePath=".\src\LogUtility.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\MainInstance.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\src\ManualParser.cpp"
+				RelativePath=".\src\ManualParser_.cpp"
 				>
 				<FileConfiguration
 					Name="Debug|Win32"
@@ -418,16 +423,16 @@
 				RelativePath=".\src\PcapReader.cpp"
 				>
 			</File>
-			<File
-				RelativePath=".\src\Utility.cpp"
-				>
-			</File>
 		</Filter>
 		<Filter
 			Name="include"
 			>
 			<File
-				RelativePath=".\src\ManualParser.h"
+				RelativePath=".\src\LogUtility.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\ManualParser_.h"
 				>
 			</File>
 			<File
@@ -440,10 +445,6 @@
 			</File>
 			<File
 				RelativePath=".\src\stdint.h"
-				>
-			</File>
-			<File
-				RelativePath=".\src\Utility.h"
 				>
 			</File>
 		</Filter>

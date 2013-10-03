@@ -49,8 +49,10 @@ namespace mqa {
 
     typedef enum
     {
+        MQMON_NOTIFY_RTP              = 0,
         MQMON_NOTIFY_ACTIVATING       = 1,
         MQMON_NOTIFY_DEACTIVATING     = 1 << 1,
+        MQMON_NOTIFY_NORTP            = 1 << 2,
         MQMON_NOTIFY_ALL              = MQMON_NOTIFY_ACTIVATING | MQMON_NOTIFY_DEACTIVATING
     } MQmonNotifyType;
 
@@ -90,6 +92,11 @@ namespace mqa {
     {
     public:
         CMQmonMetrics()
+            : MOS(0)
+            , Jitter(0)
+            , RFactor(0)
+            , fLossRate(0)
+            , nPackets(0)
         {
         }
 
@@ -100,6 +107,7 @@ namespace mqa {
         float    Jitter;
         float    RFactor;
         float    fLossRate;
+        UINT32   nPackets;
     };
 
     class MQmon;
@@ -112,7 +120,9 @@ namespace mqa {
         virtual bool IndicatePacket(const UINT8* pPkt, UINT16 pPktLength, const CMQmonFrameInfo& PktInfo) = 0;
 
         virtual void removeFlow(uintptr_t flowId){}
-        virtual bool IndicateRtpPacket(uintptr_t flowId, const UINT8* pPkt, UINT16 pPktLength, UINT32 timeSec, UINT32 timeNSec){return false;}
+
+        // out new stream or NULL
+        virtual MQmonNotifyType IndicateRtpPacket(uintptr_t flowId, const UINT8* pPkt, UINT16 pPktLength, UINT32 timeSec, UINT32 timeNSec, CMQmonStream**){return MQMON_NOTIFY_RTP;}
 
         virtual bool GetMetrics(CMQmonMetrics& Metrics) = 0;
 

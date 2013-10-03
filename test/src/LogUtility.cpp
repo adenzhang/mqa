@@ -1,4 +1,4 @@
-#include "Utility.h"
+#include "LogUtility.h"
 #include <stdarg.h>
 #include <boost/thread.hpp>
 

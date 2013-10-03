@@ -425,7 +425,7 @@ bool CPcapReader::Open(string sFilePath)
     if (!bRet)
         Close();
 
-    return true;
+    return bRet;
 }
 
 void CPcapReader::Close()

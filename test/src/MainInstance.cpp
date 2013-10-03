@@ -1,10 +1,15 @@
 #include <vector>
 #include <iostream>
 #include <boost/chrono.hpp>
-#include "Utility.h"
+#include "LogUtility.h"
 #include "OptionConfig.h"
 #include "PcapReader.h"
-#include "ManualParser.h"
+#ifdef USE_ManualParser
+//#include "ManualParser.h"
+#else
+#include "StatsFrameParser.h"
+#endif
+
 #include "MQmonIf.h"
 
 using namespace std;
@@ -12,6 +17,9 @@ using namespace boost::chrono;
 //using namespace mqa;
 
 #define VQT_STREAM_BUFFER_LENGTH    (2*(1<<10)) // 2K
+
+typedef mqa::StatsFrameParser CMQmonFrameInfo;
+typedef std::list<mqa::StatsFrameParser*> CMQmonFrameList;
 
 class CVqtWorkerThread;
 class CVqtStream
@@ -58,6 +66,7 @@ public:
         , m_nSleepMSec(0)
         , m_nTotalLength(0)
         , m_nTotalPacket(0)
+        , m_nDetectedStream(0)
     {
         m_pThread = new boost::thread(&CVqtWorkerThread::WorkerThreadFunc, this);
         m_pMQmonInterface = mqa::MQmon::Instance()->CreateInterface();
@@ -100,12 +109,18 @@ private:
     uint64_t m_nSleepMSec;
     uint64_t m_nTotalLength;
     uint64_t m_nTotalPacket;
+    UINT32   m_nDetectedStream;
 
     void Report(steady_clock::time_point* pNow = NULL, bool bForce = false);
     bool CreateStreams(void);
     void SetIpAddress(uint8_t* pAddr, bool bIpv6, uint32_t nThreadId, uint32_t nStreamId);
+#ifdef USE_ManualParser
     void SetAddress(CVqtStream& Stream, CMQmonFrameInfo* pInfo, MQmonFrameInfoIp* pIpInfo = NULL);
     bool IndicatePacket(CVqtStream& Stream, CMQmonFrameInfo* pInfo, const MQmonFrameInfoIp* pIpInfo);
+#else
+    void SetAddress(CVqtStream& Stream, CMQmonFrameInfo* parser);
+    bool IndicatePacket(CVqtStream& Stream, CMQmonFrameInfo* parser);
+#endif
     bool PlayOneStream(CVqtStream& Stream, const steady_clock::time_point& nNow, uint64_t& nSleepMSecs, bool& bFinished);
     void WorkerThreadFunc(void);
 };
@@ -204,6 +219,7 @@ bool CVqtInstance::LoadPcap(const std::string& sTrafficFile, CMQmonFrameList& Fr
         CMQmonFrameInfo* pFrameInfo = new CMQmonFrameInfo();
         if (!pFrameInfo)
             return false;
+#ifdef USE_ManualParser
         if (!pFrameInfo->Extract(pPkt, pPktHeader->incl_len, m_Config.bParseIpInfo))
         {
             delete pFrameInfo;
@@ -211,6 +227,15 @@ bool CVqtInstance::LoadPcap(const std::string& sTrafficFile, CMQmonFrameList& Fr
         }
         pFrameInfo->nTimestamp.tv_sec = pPktHeader->ts_sec;
         pFrameInfo->nTimestamp.tv_usec = pPktHeader->ts_usec;
+#else
+        if(!pFrameInfo->ParseFrame(pPkt, pPktHeader->incl_len, 0)) 
+        {
+            delete pFrameInfo;
+            continue;
+        }
+        pFrameInfo->nTimestamp.tv_sec = pPktHeader->ts_sec;
+        pFrameInfo->nTimestamp.tv_usec = pPktHeader->ts_usec;
+#endif
 
         // Insert into queue
         FrameList.push_back(pFrameInfo);
@@ -319,6 +344,7 @@ void CVqtWorkerThread::SetIpAddress(uint8_t* pAddr, bool bIpv6, uint32_t nThread
     *(uint32_t*)pAddr = nAddr;
 }
 
+#ifdef USE_ManualParser
 void CVqtWorkerThread::SetAddress(CVqtStream& Stream, CMQmonFrameInfo* pInfo, MQmonFrameInfoIp* pIpInfo)
 {
     if (!pInfo)
@@ -346,7 +372,6 @@ void CVqtWorkerThread::SetAddress(CVqtStream& Stream, CMQmonFrameInfo* pInfo, MQ
 
     return;
 }
-
 bool CVqtWorkerThread::IndicatePacket(CVqtStream& Stream, CMQmonFrameInfo* pInfo, const MQmonFrameInfoIp* pIpInfo)
 {
     if (!pInfo)
@@ -370,6 +395,29 @@ bool CVqtWorkerThread::IndicatePacket(CVqtStream& Stream, CMQmonFrameInfo* pInfo
 
     return true;
 }
+#else
+void CVqtWorkerThread::SetAddress(CVqtStream& Stream, CMQmonFrameInfo* parser)
+{
+    uint8_t* pSrcAddr = (uint8_t*)parser->SrcIp();
+    uint8_t* pDstAddr = (uint8_t*)parser->DestIp();
+    SetIpAddress(pSrcAddr, !parser->IsIpv4(), m_nId, Stream.nId);
+    SetIpAddress(pDstAddr, !parser->IsIpv4(), m_nId, Stream.nId);
+}
+bool CVqtWorkerThread::IndicatePacket(CVqtStream& Stream, CMQmonFrameInfo* parser)
+{
+    UINT32       len;
+    const UINT8 *p = parser->GetTransPayload(len);
+    
+    if( mqa::MQMON_NOTIFY_ACTIVATING == m_pMQmonInterface->IndicateRtpPacket(
+        m_nDetectedStream, p, len, parser->nTimestamp.tv_sec, parser->nTimestamp.tv_usec*1000, NULL) )
+    {
+        m_nDetectedStream++;
+    }
+
+    return false;
+}
+#endif
+
 
 bool CVqtWorkerThread::PlayOneStream(CVqtStream& Stream, const steady_clock::time_point& nNow, uint64_t& nSleepMSecs, bool& bFinished)
 {
@@ -400,6 +448,7 @@ bool CVqtWorkerThread::PlayOneStream(CVqtStream& Stream, const steady_clock::tim
         }
 
         CMQmonFrameInfo* pInfo = *Stream.ItNext;
+#ifdef USE_ManualParser
         MQmonFrameInfoIp IpInfo;
         if (!m_Instance.m_Config.bParseIpInfo) // Copy frame
             memcpy(Stream.pBuffer, pInfo->Frame(), pInfo->FrameLength());
@@ -421,6 +470,16 @@ bool CVqtWorkerThread::PlayOneStream(CVqtStream& Stream, const steady_clock::tim
 
         Stream.nPlayedLength += pInfo->FrameLength();
         m_nTotalLength += pInfo->FrameLength();
+
+#else
+        SetAddress(Stream, pInfo);
+        // Replay the packet
+        if (!m_Instance.m_Config.bIdleRun && !IndicatePacket(Stream, pInfo))
+            VqtError("Error IndicatePacket in %s.\n", __FUNCTION__);
+
+        Stream.nPlayedLength += pInfo->nDataLength;
+        m_nTotalLength += pInfo->nDataLength;
+#endif
         ++m_nTotalPacket;
 
         ++Stream.ItNext;
@@ -494,7 +553,7 @@ void CVqtWorkerThread::WorkerThreadFunc(void)
     return;
 }
 
-int main(int argc, char** argv)
+int main00(int argc, char** argv)
 {
     getchar();
     CVqtConfig Config;

@@ -77,7 +77,7 @@ public:
     uint16_t nIpUpperOffset;
     uint16_t nProtocolLowerOffset;
     uint16_t nProtocolUpperOffset;
-    uint16_t nAppLayerOffset;
+    uint16_t nAppLayerOffset, nAppLayerLen;
     MQmonTimestamp nTimestamp;
 
     MQmonFrameInfoIp tIpInfo;

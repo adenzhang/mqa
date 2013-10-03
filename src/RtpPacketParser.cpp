@@ -37,15 +37,14 @@ namespace mqa {
         bMarker    = (packetBuffer[1]&0x80) >>7;
 
         payloadType = (packetBuffer[1]&0x7F);
-        sequenceNum = Swap16(*(UINT16*)packetBuffer[2]);
-        timestamp   = Swap32(*(UINT32*)packetBuffer[4]);
-        ssrc        = Swap32(*(UINT16*)packetBuffer[8]);
+        sequenceNum = Swap16(*(UINT16*)(packetBuffer+2));
+        timestamp   = Swap32(*(UINT32*)(packetBuffer+4));
+        ssrc        = Swap32(*(UINT32*)(packetBuffer+8));
 
         nHeaderLength = 12 + nCC * 4;
 
         // Do the RTP sanity checks
-        if(!IsValid()) return false;
-        return true;
+        return !IsValid();
     }
     bool RtpPacketParser::IsValid()
     {

@@ -24,6 +24,20 @@ namespace mqa {
 
     using namespace std;
 
+    inline int SizeOf(RtsdBufFmtVQStatsType atype) {
+        switch(atype) 
+        {
+        case RtsdBufFmtVQStatsEntryCountTypeMOS_T: return sizeof(RtsdBufFmtVQStatsEntryCountTypeMOS); 
+        default: return 0; 
+        }
+    } 
+    inline int GetLength(RtsdBufFmtVQStatsEntryCount* entryCount) {
+        int n = 0;
+        for(int i=0; i<entryCount->nTypeCount; ++i)
+            n += SizeOf((RtsdBufFmtVQStatsType)entryCount->Block[n]);
+        return n + sizeof(entryCount->nTypeCount);
+    }
+
     class FlowKey;
     class VQStatsStream
     {
@@ -110,7 +124,7 @@ namespace mqa {
             if(GetStream(MQMON_STREAM_VIDEO)->pMQmonStream) t->MOS_Video = GetStream(MQMON_STREAM_VIDEO)->result.mos +5;
             if(GetStream(MQMON_STREAM_VOICE)->pMQmonStream) t->MOS_Voice = GetStream(MQMON_STREAM_VOICE)->result.mos +5;
 
-            assert(VQStats::GetLength(&e) <= RtsdBufFmtVQStatsEntryCount_BlockMaxSize);
+            assert(GetLength(&e) <= RtsdBufFmtVQStatsEntryCount_BlockMaxSize);
         }
 
         inline bool HasActivate() const
