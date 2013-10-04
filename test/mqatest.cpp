@@ -17,6 +17,24 @@ using namespace std;
 typedef mqa::StatsFrameParser FrameParser;
 typedef std::list<mqa::StatsFrameParser*> FrameParserList;
 
+long double GetTimeMicroSec()
+{
+    long double atime=0;
+#ifdef WIN32
+    static long long freq = 0;
+    long long a;
+    if( 0 == freq )
+        QueryPerformanceFrequency((LARGE_INTEGER*) &freq);
+    QueryPerformanceCounter((LARGE_INTEGER*)&a);
+    atime = (long double)a/(long double)freq * (long double)1.0E6;
+#else
+    timespec t;
+    if( 0 == clock_gettime(CLOCK_MONOTONIC, &t) )
+        atime = (long double)s.tv_sec * (long double)1.0E6 + (long double)s.tv_nsec / (long double)1.0E3;
+#endif
+    return atime;
+}
+
 bool LoadPcap(const std::string& sTrafficFile, FrameParserList& FrameList)
 {
     CPcapReader PcapReader;
@@ -94,12 +112,14 @@ struct FlowStreamPair {
         for(int i=0;i<2;++i) {
             itf[i] = NULL;
             strm[i] = NULL;
+            nCalulation[i] = 0;
         }
     }
     mqa::CMQmonInterface* itf[2];  // 0: src to dest; 1: dest to src;
     mqa::CMQmonStream*    strm[2];
     mqa::CMQmonMetrics    res[2];   // result
     mqa::CMQmonMetrics    sumRes[2];  // sum of result
+    int                   nCalulation[2];  // number of calculations
     char                  strIP[2][32];
 };
 typedef boost::shared_ptr<FlowStreamPair> FlowStreamPairPtr;
@@ -118,9 +138,13 @@ void run()
 
     mon = mqa::MQmon::Instance();
 
-    int k = 0;
+    int nCalc = 0;
+    const int NLOOP = 1;
+    long double time0 = GetTimeMicroSec(), time1;
+
+    for(int k=0; k<NLOOP; ++k) {
+
     for(FrameParserList::iterator it = packetList.begin(); it!= packetList.end(); ++it) {
-        k++;
         mqa::StatsFrameParser *parser = *it;
 
         IpPort src(parser->IsIpv4(), parser->SrcIp(), parser->IpTransInfo().TransInfo.nSrcPort);
@@ -166,26 +190,46 @@ void run()
             }
             if( pStream && pStream->IsValidStream() ) {
                 if( pStream->GetMetrics(p->res[nDir]) ){
+                    nCalc ++;
+                    p->nCalulation[nDir]++;
+                    p->sumRes[nDir].nDelay  += p->res[nDir].nDelay;
+                    p->sumRes[nDir].RFactor += p->res[nDir].RFactor;
                     p->sumRes[nDir].MOS += p->res[nDir].MOS;
                     p->sumRes[nDir].Jitter += p->res[nDir].Jitter;
                     p->sumRes[nDir].fLossRate = p->res[nDir].fLossRate;
                     p->sumRes[nDir].nPackets = p->res[nDir].nPackets;
 
-                    // output
-                    VqtDebug("%s - %s %d: MOS=%3.1f Jitter=%dms, lossRate=%d%%\n, TotalPackets=%d\n"
-                        , p->strIP[0], p->strIP[1], nDir, p->res[nDir].MOS, (int) p->res[nDir].Jitter
-                        , (int) p->res[nDir].fLossRate*100, p->res[nDir].nPackets);
-                    if( k%20 == 0 ) {
-                        int npkt = p->res[nDir].nPackets;
-                        VqtDebug("%s - %s %d [Avg]: MOS=%3.1f Jitter=%dms, lossRate=%d%%\n, TotalPackets=%d\n"
-                            , p->strIP[0], p->strIP[1], nDir, p->sumRes[nDir].MOS/npkt, (int) p->res[nDir].Jitter/npkt
-                            , (int) p->res[nDir].fLossRate*100, p->res[nDir].nPackets);
+                    /*
+                    VqtDebug("%s - %s %d: Delay=%d RFactor=%d MOS=%3.1f Jitter=%dms, lossRate=%d%%\n, TotalPackets=%d\n"
+                        , p->strIP[0], p->strIP[1], nDir, p->res[nDir].nDelay, (int)p->res[nDir].RFactor, p->res[nDir].MOS
+                        , (int) p->res[nDir].Jitter, (int) p->res[nDir].fLossRate*100, p->res[nDir].nPackets);
+                    
+                    if( k%100 == 0 ) {
+                        int ndiv = p->nCalulation[nDir];
+                        VqtDebug("%s - %s %d [Avg]: Delay=%d RFactor=%d MOS=%3.1f Jitter=%dms, lossRate=%d%%\n, TotalPackets=%d\n"
+                            , p->strIP[0], p->strIP[1], nDir, p->sumRes[nDir].nDelay/ndiv, (int)p->sumRes[nDir].RFactor/ndiv, p->sumRes[nDir].MOS/ndiv
+                            , (int) p->sumRes[nDir].Jitter/ndiv, (int) p->sumRes[nDir].fLossRate*100, p->sumRes[nDir].nPackets);
                     }
-                }
+                    */
+                }  // GetMetrics
             }  // if pStream
         }  // if old flow pair
     }
+    }
+    time1 = GetTimeMicroSec();
+    VqtDebug("--- NLOOP:%d Npackets:%d, NCalc:%d time:%dmilli ---\n", NLOOP, packetList.size(), nCalc, int(time1-time0)/1000 );
 
+    for(FlowMap::iterator it= flows.begin(); it!=flows.end(); ++it) {
+        for(int nDir=0; nDir<2; ++nDir) {
+            FlowStreamPairPtr& p = it->second;
+            if( p->strm[nDir] ) {
+                int ndiv = p->nCalulation[nDir];
+                VqtDebug("%s - %s %d [Avg]: Delay=%d RFactor=%d MOS=%3.1f Jitter=%dms, lossRate=%d%%\n, TotalPackets=%d\n"
+                    , p->strIP[0], p->strIP[1], nDir, p->sumRes[nDir].nDelay/ndiv, (int)p->sumRes[nDir].RFactor/ndiv, p->sumRes[nDir].MOS/ndiv
+                    , (int) p->sumRes[nDir].Jitter/ndiv, (int) p->sumRes[nDir].fLossRate*100, p->sumRes[nDir].nPackets);
+            }
+        }
+    }
     for(FrameParserList::iterator it = packetList.begin(); it!= packetList.end(); ++it) {
         delete *it;
     }

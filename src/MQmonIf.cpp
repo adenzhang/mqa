@@ -61,10 +61,12 @@ namespace mqa {
         virtual bool GetMetrics(CMQmonMetrics& Metrics)
         {
             if(!rtpStream->IsValidStream()) return false;
-            rtpStream->CalculateOneWayDelay();
+            ftl::timenano delay = rtpStream->CalculateOneWayDelay();
+            Metrics.nDelay = delay.as<int>(); 
+            Metrics.nDelay /= 1000; // to milli-sec
             UINT32 nPackets;
             Metrics.Jitter = rtpStream->CalculateJitter().as<float>();
-            Metrics.Jitter /= 1000; // to micro-sec
+            Metrics.Jitter /= 1000; // to milli-sec
             Metrics.fLossRate = rtpStream->CalculatePacketLossRate(nPackets);
             Metrics.nPackets = nPackets;
             float rfactor, mos;

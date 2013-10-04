@@ -108,6 +108,7 @@ namespace mqa {
         float    RFactor;
         float    fLossRate;
         UINT32   nPackets;
+        INT32    nDelay;
     };
 
     class MQmon;

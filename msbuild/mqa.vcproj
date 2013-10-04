@@ -398,6 +398,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\CalculateRFactor.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\src\MQmonIf.cpp"
 				>
 			</File>
@@ -435,6 +439,10 @@
 			>
 			<File
 				RelativePath="..\include\AnalyzerImpl.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\CalculateRFactor.h"
 				>
 			</File>
 			<File

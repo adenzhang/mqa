@@ -54,27 +54,34 @@ namespace ftl{
             if(s) nsec = nsec%kSUBSEC;
             return *this;
         }
-        friend int subtract_abs(const timesec& x, const timesec& ay, timesec& result)
+        // x and ay must be positive
+        friend int diff(timesec& x, const timesec& ay)
         {
             timesec y = ay;
             /* Perform the carry for the later subtraction by updating y. */
             if (x.nsec < y.nsec) {
-                int nsec = (y.nsec - x.nsec) / kSUBSEC + 1;
+                int nsec = (y.nsec - x.nsec) / kSUBSEC + 1;  // always nsec == 1?
                 y.nsec -= kSUBSEC * nsec;
                 y.sec += nsec;
             }
-            if (x.nsec - y.nsec > kSUBSEC) {
+            if (x.nsec - y.nsec > kSUBSEC) {  // possible?
                 int nsec = (x.nsec - y.nsec) / kSUBSEC;
                 y.nsec += kSUBSEC * nsec;
                 y.sec -= nsec;
             }
+            int negative = x.sec < y.sec?1:0;
 
             /* Compute the time remaining to wait.
             tv_usec is certainly positive. */
-            result.sec = x.sec - y.sec;
-            result.nsec = x.nsec - y.nsec;
+            x.sec = x.sec - y.sec;     // may negative
+            x.nsec = x.nsec - y.nsec;  // positive
+
+            if( x.sec < 0 ){  // adjust to positive
+                 x.sec = - x.sec - 1;
+                 x.nsec = kSUBSEC - x.nsec;
+            }
             /* Return 1 if result is negative. */
-            return x.sec < y.sec?1:0;
+            return negative;
         }
 
         inline timesec& neg() {
@@ -90,11 +97,12 @@ namespace ftl{
                 *this += -y;
             }else{ // x and y have the same sign
                 if( negX ) {
-                    timesec abx = -x, aby = -y;
-                    if( !subtract_abs(abx, aby, *this) )
+                    timesec aby = -y;
+                    x.neg();
+                    if( !diff(x, aby) )
                         neg();
                 }else {
-                    if( subtract_abs(x, y, *this) )
+                    if( diff(x, y) )
                         neg();
                 }
             }

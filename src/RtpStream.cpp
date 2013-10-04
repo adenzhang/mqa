@@ -1,6 +1,7 @@
 #include "RtpStream.h"
 #include <list>
 #include <algorithm>
+#include "CalculateRFactor.h"
 
 #define SetMinMax(nSample, nMin, nMax) \
     if ((nSample < nMin)) nMin = nSample; \
@@ -35,7 +36,7 @@ namespace mqa {
         double        currMOS, prevMOS;
 
         UINT64        nMinSeqNum, nMaxSeqNum, nRecvPackts;
-        UINT32        nCodeFrameSize, nClockRate;
+        UINT32        nCodecFrameSize, nClockRate;
         int           lenPayload;
 
         RTPMediaType  mediaType;
@@ -110,7 +111,7 @@ namespace mqa {
             // update info
             bValidStream = true;
             {
-                nCodeFrameSize = RTPCodec2CodecFrameSize(codecType, &lenPayload);
+                nCodecFrameSize = RTPCodec2CodecFrameSize(codecType, &lenPayload);
                 RTPCodec2RTPMediaType(codecType, mediaType, streamType);
                 nClockRate = RTPCodec2ClockRate(codecType);
                 nRecvPackts = NLASTPACKETS;
@@ -154,8 +155,13 @@ namespace mqa {
 
         bool CalculateMOS(float& mos, float& rfactor)
         {
-            // todo
-            return true;
+            UINT32 nPackts;
+            double MOS, RFactor;
+            bool ret = CalculateRFactor(codecType, nCodecFrameSize, currJitter.as<float>()/1000000
+                , currDelay.as<float>()/100000, 0.0, CalculatePacketLossRate(nPackts), &RFactor, &MOS);
+            mos = MOS;
+            rfactor = RFactor;
+            return ret;
         }
     };
 
