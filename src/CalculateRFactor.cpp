@@ -102,7 +102,9 @@ namespace mqa {
             break;
 
         default:
-            return false;
+            De = 1.2 * dCodecFrameSize;
+            //return false;
+            break;
         } // switch nCodecType
 
         Dj = min(dCodecFrameSize + 0.9 * dRTPjitter, 300);
@@ -293,7 +295,10 @@ namespace mqa {
         //    break;
 
         default:
-            return false;
+            Ie = 0.0;
+            Bpl = 8.6;
+            //return false;
+            break;
         }
 
         //	Ie_eff = Ie + (95.0 - Ie) * (dPacketLossRate / 100.0) / ((dPacketLossRate / 100.0) + Bpl);

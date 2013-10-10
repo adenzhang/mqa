@@ -20,7 +20,7 @@ inline void dprintf(const wchar_t *s, ...)
     wchar_t szDebug[256];
 
     va_start(arglist, s);
-    wvsprintf(szDebug, s, arglist);
+    wvsprintfW(szDebug, s, arglist);
     va_end(arglist);
     OutputDebugStringW(szDebug);
 }
