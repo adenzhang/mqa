@@ -13,8 +13,13 @@
 /// case 4 (full, _head=_tail-1)
 //    ||...allocated...|..one-byte-empty..|....allocated....|....empty.....||
 ///    |_buf           |_head             |_tail            |_end          |_MAX_SIZE
-class FifoBuffer
+namespace ftl{
+
+class FifoPool
 {
+public:
+    typedef unsigned int HEADER_T;
+    enum {HEADER_SIZE=sizeof(unsigned int), FULL_GAP = 1};
 protected:
     char                *_buf;
     const size_t        MAX_SIZE;
@@ -23,8 +28,6 @@ protected:
     char                *_head, *_tail;     //   |... 
     char                *_end;   // point to end of buf
 
-    typedef unsigned int HEADER_T;
-    enum {HEADER_SIZE=sizeof(unsigned int), FULL_GAP = 1};
 
     inline char *advance(char *ptr, size_t size) {
         *(int*)ptr = size;
@@ -37,7 +40,7 @@ protected:
     }
 public:
 
-    FifoBuffer(size_t maxsize): MAX_SIZE(maxsize), nBuffers(0)
+    FifoPool(size_t maxsize): MAX_SIZE(maxsize+HEADER_SIZE+FULL_GAP), nBuffers(0)
     {
         assert(MAX_SIZE > 1);
         _buf = new char[MAX_SIZE];
@@ -45,17 +48,16 @@ public:
         _tail = _buf;
         _end =  _buf;
     }
-    ~FifoBuffer()
+    ~FifoPool()
     {
         delete[] _buf;
     }
 
-    inline bool empty() {
-        return _head == _tail;
-    }
-    size_t getBufferCount(){return nBuffers;}
+    inline bool empty() { return _head == _tail;}
+    size_t size(){return nBuffers;}
+    size_t capacity() { return MAX_SIZE; }
 
-    inline void  *allocate(size_t size) {
+    void  *allocate(size_t size) {
         if( size == 0 ) return NULL;
         void *ret = NULL;
         if(_head >= _tail) {
@@ -84,26 +86,24 @@ public:
     }
     void *peek(size_t *size) {
         if( empty() ) return NULL;
-        char * ret = NULL;
-
         if(size)
             *size = *(int*)_tail;
-        ret = _tail + HEADER_SIZE;
-        return ret;
+        return _tail + HEADER_SIZE;
     }
 
     // deallocate
     // return popped up address
-    void *deallocate(size_t *size=NULL) {
-        return pop(size);
+    void *deallocate() {
+        return pop();
     }
     // deallocate
     // return popped up address
-    void *pop(size_t *size) {
+    void *pop() {
         if( empty() ) return NULL;
         char * ret = NULL;
 
         size_t n = *(int*)_tail;
+        size_t *size=NULL;
         if(size)
             *size = n;
         ret = _tail + HEADER_SIZE;
@@ -145,3 +145,4 @@ public:
         return true;
     }
 };
+}  // namespace ftl

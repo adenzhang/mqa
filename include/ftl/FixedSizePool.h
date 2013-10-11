@@ -3,15 +3,10 @@
 // size of each allocated buffer is fixed to multiple elements
 // buffer layout:   |1 int header|.....multiple elements buffer ...|
 //                      | number of elements
-class FixedSizeBuffer
+namespace ftl {
+class FixedSizePool
 {
-protected:
-    char                *_buf, *_pEnd, *_pAvail;
-    const size_t         _elemSize, _elemMaxCount, _oneBufSize;
-    const size_t         MAX_SIZE;
-    size_t               nBuffers;
-
-
+public:
     typedef unsigned int HEADER_TYPE;
     enum {HEADER_SIZE=sizeof(unsigned int)
         , BUFFER_ALLOCATED_MASK=1<<(HEADER_SIZE*8-1)
@@ -21,6 +16,14 @@ protected:
         HEADER_TYPE bAlloc:1;
         HEADER_TYPE nElem:(HEADER_SIZE*8-1);
     };
+
+protected:
+    char                *_buf, *_pEnd, *_pAvail;
+    const size_t         _elemSize, _elemMaxCount, _oneBufSize;
+    const size_t         MAX_SIZE;
+    size_t               nBuffers;
+
+
     inline HEADER_T& getHeader(char *buf) {
         return *(HEADER_T*)(buf-HEADER_SIZE);
     }
@@ -64,7 +67,7 @@ protected:
         return ((char*)buf) + _oneBufSize; //getBufferSize(buf);
     }
 public:
-    FixedSizeBuffer(size_t elemSize, size_t elemMaxCount)
+    FixedSizePool(size_t elemSize, size_t elemMaxCount)
         :_elemSize(elemSize), _elemMaxCount(elemMaxCount)
         , nBuffers(0), MAX_SIZE((elemSize+HEADER_SIZE) * elemMaxCount)
         , _oneBufSize(_elemSize + HEADER_SIZE)
@@ -77,11 +80,12 @@ public:
         }while( (ptr = (char*)nextBuffer(ptr)) < _pEnd );
         _pAvail = (char*)firstBuffer();
     }
-    ~FixedSizeBuffer()
+    ~FixedSizePool()
     {
         delete[] _buf;
     }
-    size_t getBufferCount(){return nBuffers;}
+    size_t size(){return nBuffers;}
+    size_t capacity() {return _elemMaxCount;}
 
     //inline size_t getElemCount(void *buf) {
     //    return getElemCount(getHeader(buf));
@@ -96,7 +100,8 @@ public:
     inline bool full() {
         return nBuffers == _elemMaxCount;
     }
-    inline void  *allocate() {
+    bool empty() { return nBuffers == 0; }
+    void  *allocate() {
         char *ret;
         if(_pAvail) {
             ret = _pAvail;
@@ -130,3 +135,4 @@ public:
     }
 
 };
+}  // namespace ftl

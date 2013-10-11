@@ -8,7 +8,7 @@
 #include <boost/shared_ptr.hpp>
 
 #include "MQmonIf.h"
-#include "ftlcollections.h"
+#include "ftl/ftlcollections.h"
 #include "mqa_flowkeys.h"
 #include "mqainterface.h"
 #include "classifyconsts.h"

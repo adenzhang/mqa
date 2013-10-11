@@ -3,15 +3,10 @@
 // size of each allocated buffer is fixed to multiple elements
 // buffer layout:   |1 int header|.....multiple elements buffer ...|
 //                      | number of elements
-class MultiSizeBuffer
+namespace ftl {
+class MultiSizePool
 {
-protected:
-    const char                *_buf, *_pEnd;
-    const size_t         _elemSize, _elemMaxCount, _oneBufSize;
-    const size_t         MAX_SIZE;
-    size_t               nBuffers;
-
-
+public:
     typedef unsigned int HEADER_TYPE;
     enum {HEADER_SIZE=sizeof(HEADER_TYPE)
         , BUFFER_ALLOCATED_MASK=1<<(HEADER_SIZE*8-1)
@@ -21,6 +16,12 @@ protected:
         HEADER_TYPE bAlloc:1;
         HEADER_TYPE nElem:(HEADER_SIZE*8-1);
     };
+
+protected:
+    const char                *_buf, *_pEnd;
+    const size_t         _elemSize, _elemMaxCount, _oneBufSize;
+    const size_t         MAX_SIZE;
+    size_t               nBuffers;
 
     inline HEADER_T& getHeader(char *buf) {
         return *(HEADER_T*)(buf-HEADER_SIZE);
@@ -84,7 +85,7 @@ protected:
         return ((char*)buf) - getBufferSize(buf);
     }
 public:
-    MultiSizeBuffer(size_t elemSize, size_t elemMaxCount)
+    MultiSizePool(size_t elemSize, size_t elemMaxCount)
         :_elemSize(elemSize), _elemMaxCount(elemMaxCount)
         , nBuffers(0), MAX_SIZE((elemSize+HEADER_SIZE) * elemMaxCount)
         , _oneBufSize(_elemSize + HEADER_SIZE)
@@ -95,11 +96,14 @@ public:
         _pEnd = _buf + MAX_SIZE;
         setBuffer(getHeader((char*)firstBuffer()), false, elemMaxCount);
     }
-    ~MultiSizeBuffer()
+    ~MultiSizePool()
     {
         delete[] _buf;
     }
-    size_t getBufferCount(){return nBuffers;}
+    size_t size(){return nBuffers;}
+    size_t capacity() {return _elemMaxCount;}
+    bool empty() { return nBuffers == 0; }
+
 
     inline size_t getElemCount(void *buf) {
         return getElemCount(getHeader((char*)buf));
@@ -113,7 +117,7 @@ public:
     inline bool full() {
         return nBuffers == _elemMaxCount;
     }
-    inline void  *allocate(size_t elemCount=1, int bCompact=0) {
+    void  *allocate(size_t elemCount=1, int bCompact=0) {
         enum ALLOC_POLICY{POLICY_COMPACT, POLICY_FAST};
         ALLOC_POLICY PL = POLICY_COMPACT;
         char *ret=NULL;
@@ -162,3 +166,4 @@ public:
     }
 
 };
+}  // namespace ftl

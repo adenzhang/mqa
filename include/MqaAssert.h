@@ -1,6 +1,7 @@
 #ifndef MQA_MQASEERT_H_
 #define MQA_MQASEERT_H_
 
+#include <varargs.h>
 #include <assert.h>
 #include <stdio.h>
 
@@ -12,18 +13,20 @@ inline void dprintf(const char *s, ...)
     va_start(arglist, s);
     vsprintf(szDebug, s, arglist);
     va_end(arglist);
-    OutputDebugStringA(szDebug);
+    printf("%s\n", szDebug);
+    //OutputDebugStringA(szDebug);
 }
-inline void dprintf(const wchar_t *s, ...)
-{
-    va_list arglist;
-    wchar_t szDebug[256];
-
-    va_start(arglist, s);
-    wvsprintfW(szDebug, s, arglist);
-    va_end(arglist);
-    OutputDebugStringW(szDebug);
-}
+//inline void dprintf(const wchar_t *s, ...)
+//{
+//    va_list arglist;
+//    wchar_t szDebug[256];
+//
+//    va_start(arglist, s);
+//    wvsprintfW(szDebug, s, arglist);
+//    va_end(arglist);
+//    printf("%s\n", szDebug);
+//    //OutputDebugStringW(szDebug);
+//}
 #define MY_ASSERT
 #ifdef MY_ASSERT
 

@@ -1,8 +1,9 @@
 #include "stdafx.h"
 #include "assert.h"
-#include "FifoBuffer.h"
-#include "FixedSizeBuffer.h"
-#include "MultiSizeBuffer.h"
+#include "ftl/FifoPool.h"
+#include "ftl/FixedSizePool.h"
+#include "ftl/MultiSizePool.h"
+#include <boost/function.hpp>
 
 extern long double GetTimeMicroSec();
 
@@ -10,7 +11,7 @@ void test_MultiSizeBuffer()
 {
     const int NSIZE = 1024*10;
     long double time0, time1;
-    MultiSizeBuffer pool(sizeof(int), NSIZE);
+    ftl::MultiSizePool pool(sizeof(int), NSIZE);
     int **buf = new int*[NSIZE];
 
     int i;
@@ -23,7 +24,7 @@ void test_MultiSizeBuffer()
         pool.deallocate(buf[i]);
     }
     time1 = GetTimeMicroSec();
-    printf("MultiSizeBuffer :%d timing:%d\n", i, int(time1-time0));
+    printf("MultiSizePool :%d timing:%d\n", i, int(time1-time0));
 
     delete[] buf;
 }
@@ -32,7 +33,7 @@ void test_FixedSizeBuffer()
 {
     const int NSIZE = 1024*10;
     long double time0, time1;
-    FixedSizeBuffer pool(sizeof(int), NSIZE);
+    ftl::FixedSizePool pool(sizeof(int), NSIZE);
     int **buf = new int*[NSIZE];
 
     int i;
@@ -45,7 +46,7 @@ void test_FixedSizeBuffer()
         pool.deallocate(buf[i]);
     }
     time1 = GetTimeMicroSec();
-    printf("FixedSizeBuffer :%d timing:%d\n", i, int(time1-time0));
+    printf("FixedSizePool :%d timing:%d\n", i, int(time1-time0));
 
     time0 = GetTimeMicroSec();
     for(i=0; i < NSIZE; ++i) {
@@ -65,7 +66,7 @@ void test_FifoBuffer()
     const int NSIZE = 1024*100;
     const int  N = sizeof(int);
     long double time0, time1;
-    FifoBuffer pool(NSIZE*(N+4));
+    ftl::FifoPool pool(NSIZE*(N+4));
     size_t n;
     int i=0;
 
@@ -79,10 +80,12 @@ void test_FifoBuffer()
     }
     assert(i==j);
     time1 = GetTimeMicroSec();
-    printf("FifoBuffer :%d timing:%d\n", i, int(time1-time0));
+    printf("FifoPool :%d timing:%d\n", i, int(time1-time0));
 }
-int _tmain(int argc, _TCHAR* argv[])
+int test_bufferpool(int argc, _TCHAR* argv[])
 {
+    printf("boost::function< void() > sizeof:%d\n", sizeof(boost::function< void() >));
+    return 0;
     test_FifoBuffer();
     test_MultiSizeBuffer();
     //test_FixedSizeBuffer();

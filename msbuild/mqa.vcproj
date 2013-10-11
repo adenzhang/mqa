@@ -426,6 +426,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\ThreadPool.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\src\VQStatsKeyMap.cpp"
 				>
 			</File>
@@ -447,18 +451,6 @@
 			</File>
 			<File
 				RelativePath="..\include\classifyconsts.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\FifoBuffer.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\FixedSizeBuffer.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\ftlcollections.h"
 				>
 			</File>
 			<File
@@ -490,10 +482,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\include\MultiSizeBuffer.h"
-				>
-			</File>
-			<File
 				RelativePath="..\include\PacketParser.h"
 				>
 			</File>
@@ -518,6 +506,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\include\ThreadPool.h"
+				>
+			</File>
+			<File
 				RelativePath="..\include\timesec.h"
 				>
 			</File>
@@ -527,6 +519,26 @@
 			</File>
 			<File
 				RelativePath="..\include\VQStatsRtsmDumper.h"
+				>
+			</File>
+		</Filter>
+		<Filter
+			Name="ftl"
+			>
+			<File
+				RelativePath="..\include\ftl\FifoPool.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\ftl\FixedSizePool.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\ftl\ftlcollections.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\ftl\MultiSizePool.h"
 				>
 			</File>
 		</Filter>
