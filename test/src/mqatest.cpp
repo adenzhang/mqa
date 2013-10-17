@@ -1,7 +1,7 @@
 // mqatest.cpp : Defines the entry point for the console application.
 //
 
-#include "stdafx.h"
+//#include "stdafx.h"
 #include "MqaAssert.h"
 #include <list>
 #include "LogUtility.h"
@@ -388,7 +388,7 @@ void run(const string pcapfn, int nThread)
                 break;
         }
 
-        // potential issue: there may be some threads processing the 
+        // potential issue: there may be some threads still processing the last 
     }
 
     time1 = GetTimeMicroSec();
@@ -529,7 +529,7 @@ void run0(const string pcapfn = "call-rodney-002-whole.pcap")
     }
     packetList.clear();
 }
-int _tmain(int argc, _TCHAR* argv[])
+int main(int argc, char* argv[])
 {
     string fn;
     int  nThread = -1;
@@ -556,11 +556,15 @@ int _tmain(int argc, _TCHAR* argv[])
     }
     
     VqtSetLogLevel(VQT_LOG_DEBUG);
+
+    long double time0 = GetTimeMicroSec(), time1;
     if(nThread<0) {
         run0(fn);
     }else{
         run(fn, nThread);
     }
+    time1 = GetTimeMicroSec();
+    printf("Timing App:%dmilli\n", int(time1-time0)/1000);
     return 0;
 }
 

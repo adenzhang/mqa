@@ -2,7 +2,7 @@
 #include <list>
 #include "RtpStream.h"
 #include "timesec.h"
-#include "ftlcollections.h"
+#include "ftl/ftlcollections.h"
 #include <assert.h>
 
 using namespace ftl;
