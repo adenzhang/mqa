@@ -1,5 +1,6 @@
 #ifndef FTL_TIMESEC_H_
 #define FTL_TIMESEC_H_
+#include <stddef.h>
 
 #ifdef WIN32
 #include <WinSock2.h>

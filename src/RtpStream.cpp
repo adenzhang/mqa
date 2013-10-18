@@ -12,7 +12,7 @@ namespace mqa {
     struct RtpPacketInfo:
         public RtpPacketParser
     {
-        RtpPacketInfo(RtpPacketParser p, ftl::timenano& t)
+        RtpPacketInfo(RtpPacketParser p, const ftl::timenano& t)
             : RtpPacketParser(p), capTime(t)
         {}
         ftl::timenano capTime; // capture time;
@@ -59,14 +59,15 @@ namespace mqa {
         {
         }
 
-        void pushPacket(RtpPacketInfo& p) {
+        void pushPacket(const RtpPacketInfo& p) {
             lastPackets.push_back(p);
             while(lastPackets.size() > NLASTPACKETS) {
                 lastPackets.pop_front();
             }
         }
-        bool PacketArrival(ftl::timenano& captureTime, RtpPacketParser& packet)
+        bool IndicateRtpPacket(const ftl::timenano& captureTime, const RtpPacketParser& apacket)
         {
+            RtpPacketParser packet(apacket);
             if( !packet.IsValid() && !packet.Parse()) {
                 bValidStream = false;
                 return false;
@@ -138,7 +139,7 @@ namespace mqa {
             prevRx = currRx;
             prevTx = currTx;
 
-            timenano  dTimePacket = timenano.kSUBSEC/nClockRate*dCountTx;  // convert to nano-second
+            timenano  dTimePacket = timenano::kSUBSEC/nClockRate*dCountTx;  // convert to nano-second
 
             currDelay = dCapture - dTimePacket;
             return currDelay;

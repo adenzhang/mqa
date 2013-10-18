@@ -46,14 +46,14 @@ namespace mqa {
         // Do the RTP sanity checks
         return !IsValid();
     }
-    bool RtpPacketParser::IsValid()
+    bool RtpPacketParser::IsValid() const
     {
         if  (packetLength < nHeaderLength || (ver != 0x80)  || (nCC > 3)) {
             return false;
         }
         return true;
     }
-    const char *RtpPacketParser::GetPayload(int* len)
+    const char *RtpPacketParser::GetPayload(int* len) const
     {
         if(!IsValid()) return NULL;
 

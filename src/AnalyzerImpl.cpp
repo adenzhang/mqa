@@ -3,6 +3,7 @@
 #include "AnalyzerImpl.h"
 
 #include "MqaAssert.h"
+#include <boost/atomic.hpp>
 
 
 namespace mqa {
@@ -186,17 +187,15 @@ namespace mqa {
         Info.nTransOffset = TransInfo.nTransOffset;
         Info.nTransLength = TransInfo.nTransLength;
     }
-    LONG AnalyzerImpl::g_nInstances = 0;
+    static boost::atomic<int> g_nInstances(0);
     void AnalyzerImpl::InitVQStats(LOGLEVEL_TYPE loglevel)
     {
-        if (InterlockedIncrement(&g_nInstances) == 1)
-            //MQmonInit(VQStatsNotifyHandler);
+        if (g_nInstances.fetch_add(1, boost::memory_order_relaxed) == 0)
             MQmon::Instance()->Init(AnalyzerImpl::VQStatsNotifyHandler, MQMON_NOTIFY_ALL, loglevel);
     }
     void AnalyzerImpl::FiniVQStats(void)
     {
-        if (InterlockedDecrement(&g_nInstances) == 0)
-            //MQmonFini();
+        if (g_nInstances.fetch_sub(1, boost::memory_order_relaxed) == 1)
             MQmon::Instance()->Destroy();
     }
 

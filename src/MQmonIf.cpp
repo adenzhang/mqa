@@ -49,7 +49,7 @@ namespace mqa {
         }
         virtual bool IndicateRtpPacket(const UINT8* pPkt, UINT16 pPktLength, UINT32 timeSec, UINT32 timeNSec)
         {
-            return rtpStream->PacketArrival(timenano(timeSec, timeNSec), RtpPacketParser((const char*)pPkt, pPktLength));
+            return rtpStream->IndicateRtpPacket(timenano(timeSec, timeNSec), RtpPacketParser((const char*)pPkt, pPktLength));
         }
         virtual bool IsValidStream()
         {

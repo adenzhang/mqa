@@ -1,7 +1,11 @@
 #ifndef MQA_MQASEERT_H_
 #define MQA_MQASEERT_H_
 
+#ifdef WIN32
 #include <varargs.h>
+#else
+#include <stdarg.h>
+#endif
 #include <assert.h>
 #include <stdio.h>
 

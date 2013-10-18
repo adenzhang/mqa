@@ -36,8 +36,8 @@ namespace mqa {
 
         // return false if failed to parse current layer.
         virtual bool Parse(){return false;}
-        virtual bool IsValid() {return false;}
-        virtual const char *GetPayload(int* len){return 0;}
+        virtual bool IsValid() const {return false;}
+        virtual const char *GetPayload(int* len) const {return 0;}
 
         virtual ~PacketParser(){}
     };

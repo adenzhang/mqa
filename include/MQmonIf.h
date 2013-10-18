@@ -7,6 +7,9 @@
 #define MQMON_DLLEXPORT __declspec (dllexport)
 #else  // linux
 #define MQMON_DLLEXPORT
+#include <sys/time.h>
+#include "linuxbasetsd.h"
+#include "stdint.h"
 #endif
 
 namespace mqa {

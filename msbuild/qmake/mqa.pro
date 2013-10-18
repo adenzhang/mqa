@@ -6,28 +6,42 @@ CONFIG += sharedlib
 
 DEFINES += MQA_EXPORTS
 
+#------------- arch(x64/x86), buildmode(debug/release) -----------
+ARCH=x64
+
+contains(QMAKE_HOST.arch, x86_64):      ARCH=x64
+contains(QMAKE_HOST.arch, x86):         ARCH=x86
+
+contains(QMAKE_TARGET.arch, x86):       ARCH=x86
+contains(QMAKE_TARGET.arch, x86_64):    ARCH=x64
+
+linux-g++-32:                           ARCH=x86
+linux-g++-64:                           ARCH=x64
+
+CONFIG(debug, debug|release) :          BUILDMODE=debug
+CONFIG(release, debug|release) :        BUILDMODE=release
+
+#----------------- use libaries ---------------------
+# DESTDIR
+DESTDIR = $$PWD/../../lib/$$ARCH/$$BUILDMODE
+
 win32 {
 
-CONFIG(debug, debug|release) : DESTDIR = $$PWD/../bin/x64/debug
-else: CONFIG(release, debug|release) : DESTDIR = $$PWD/../bin/x64/release
+    # libary boost path
+    BOOSTDIR = D:/onprogram/clib/boost
 
-#libary boost
-LIBS += -LD:/onprogram/clib/boost/lib/x64
-INCLUDEPATH += D:/onprogram/clib/boost/include
-
-LIBS += -lws2_32
+    LIBS += -lws2_32
 
 } else { #linux -------------------
 
-CONFIG(debug, debug|release) : DESTDIR = $$PWD/../bin-linux/x64/debug
-else: CONFIG(release, debug|release) : DESTDIR = $$PWD/../bin-linux/x64/release
-
-#libary boost
-CONFIG(debug, debug|release) : LIBS += -L/program/linux/usr/boost/lib-x64-debug
-else: CONFIG(release, debug|release) : LIBS += -L/program/linux/usr/boost/lib-x64-release
-INCLUDEPATH += /program/linux/usr/boost/include
+    # libary boost path
+    BOOSTDIR = /home/jiezhang/test/boost/boost-gcc-shared
 
 }  # linux
+
+# libary boost
+LIBS += -L$$BOOSTDIR/lib/$$ARCH/$$BUILDMODE
+INCLUDEPATH += $$BOOSTDIR/include
 
 INCLUDEPATH += ../../include
 INCLUDEPATH += ../../AnalyzerCommon

@@ -29,7 +29,7 @@ struct StdQueue
     StdQueue(size_t size){}
 
     bool empty(){return pool.empty();}
-    bool push(ELEM_TYPE& e){ pool.push(e); return true;}
+    bool push(const ELEM_TYPE& e){ pool.push(e); return true;}
     ELEM_TYPE front(){ return pool.front();}
     void pop(){ pool. pop();}
     size_t size(){ return pool.size();}
@@ -47,7 +47,7 @@ struct FiFoQueue
 
     bool empty(){return pool.empty();}
 
-    bool push(ELEM_TYPE& e) {
+    bool push(const ELEM_TYPE& e) {
         void *pElem = pool.allocate(sizeof(ELEM_TYPE));
         if(!pElem) return false;
         ::new(pElem) ELEM_TYPE(e);
@@ -112,8 +112,6 @@ public:
         try
         {
             threads_.join_all();
-            if( ptasks_ )
-                delete ptasks_;
         }
         // Suppress all exceptions.
         catch ( ... ) {}
@@ -162,7 +160,7 @@ public:
 
         // Decrement count, indicating thread is no longer available.
         //--available_;
-        if( !tasks_.push( TASK_T(f, param) ) )
+        if( !tasks_.push( task ) )
             return false;
 
         // Set task and signal condition variable so that a worker thread will

@@ -1,9 +1,31 @@
 
-#ifdef _WIN32
+#ifdef WIN32
 #include <WinSock2.h>
+#else
+#include <netinet/in.h>
 #endif
 
 #include "PcapReader.h"
+
+//------------------------------------------
+#ifndef WIN32 /* linux */
+#define _FILE_OFFSET_BITS 64
+#endif
+
+#include <stdio.h>
+
+#ifdef WIN32 /* windows */
+#define fseeko _fseeki64
+#define ftello _ftelli64
+typedef __int64 off_t;
+#endif
+
+#ifndef WIN32 /* other */
+#define fseeko fseek
+#define ftello ftell
+typedef long off_t;
+#endif
+//------------------------------------------
 
 using namespace std;
 
@@ -56,14 +78,14 @@ bool CMemFileReader::Open(string sFilePath)
     do 
     {
         // Open file
-        if (fopen_s(&m_pFile, sFilePath.c_str(), "rb") != 0)
+        if ((m_pFile=fopen(sFilePath.c_str(), "rb")) == 0)
             break;
 
         // Get file length
-        if (_fseeki64(m_pFile, 0, SEEK_END) != 0)
+        if (fseeko(m_pFile, 0, SEEK_END) != 0)
             break;
-        m_nFileLength = _ftelli64(m_pFile);
-        if (_fseeki64(m_pFile, 0, SEEK_SET) != 0)
+        m_nFileLength = ftello(m_pFile);
+        if (fseeko(m_pFile, 0, SEEK_SET) != 0)
             break;
 
         // Allocate buffer
@@ -215,7 +237,7 @@ bool CThreadFileReader::Open(string sFilePath)
     do 
     {
         // Open file
-        if (fopen_s(&m_pFile, sFilePath.c_str(), "rb") != 0)
+        if ( (m_pFile=fopen(sFilePath.c_str(), "rb")) != 0)
             break;
         m_nFilePos = 0;
         m_bIsEof = false;

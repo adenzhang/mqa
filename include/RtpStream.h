@@ -15,7 +15,7 @@ namespace mqa {
         virtual ~RtpStream(){}
 
         // return false and set invalid if invalid RTP header. 
-        virtual bool PacketArrival(ftl::timenano& captureTime, RtpPacketParser& packet) = 0;
+        virtual bool IndicateRtpPacket(const ftl::timenano& captureTime, const RtpPacketParser& packet) = 0;
 
         // check whether stream has been detected.
         virtual bool IsValidStream() const = 0;

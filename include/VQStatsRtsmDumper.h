@@ -13,7 +13,7 @@ namespace mqa {
 
     struct VQStatsRtsmDumper
     {
-        void init(VQStatsKeyMap *keymap, Analyzer::PFN_OutputBlockCallback pFunc, INT32 param, ftl::timenano& interval)
+        void init(VQStatsKeyMap *keymap, Analyzer::PFN_OutputBlockCallback pFunc, INT32 param, const ftl::timenano& interval)
         {
             m_pKeyMap = keymap;
             m_pfnOutputStatsBlock = pFunc;
@@ -29,7 +29,7 @@ namespace mqa {
         void VQStatsOutputAndResetBlock(UINT8* pRTSMBuffer, UINT32& nOffset);
 
         // return true if it's time to output
-        bool processTime(ftl::timenano& timestamp);
+        bool processTime(const ftl::timenano& timestamp);
 
     protected:
 
@@ -41,7 +41,7 @@ namespace mqa {
         Analyzer::PFN_OutputBlockCallback m_pfnOutputStatsBlock;
         INT32          m_uUserParam;
 
-        void setPrevTime(ftl::timenano& timestamp);
+        void setPrevTime(const ftl::timenano &timestamp);
     };
 
 }  // namespace mqa

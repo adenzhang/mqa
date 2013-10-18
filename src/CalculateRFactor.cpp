@@ -1,6 +1,7 @@
 #include "CalculateRFactor.h"
 #include "RtpTypes.h"
 #include <math.h>
+#include <algorithm>
 
 namespace mqa {
     bool CalculateRFactor(RTPCodec nCodecType,
@@ -107,7 +108,7 @@ namespace mqa {
             break;
         } // switch nCodecType
 
-        Dj = min(dCodecFrameSize + 0.9 * dRTPjitter, 300);
+        Dj = std::min((double)dCodecFrameSize + 0.9 * dRTPjitter, (double)300);
 
         //mean one way delay
         T = dRTCPDelay + Dj + De +Dr;	// network delay + jitter~decoding delay + encoding delay + receiving side delay

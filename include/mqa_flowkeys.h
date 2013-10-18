@@ -67,7 +67,7 @@ namespace mqa {
             return 0;
         }
 
-        StatsIpAddr& StatsIpAddr::operator=(const StatsIpAddr& nAddr)
+        StatsIpAddr& operator=(const StatsIpAddr& nAddr)
         {
             m_n64[0] = nAddr.m_n64[0];
             m_n64[1] = nAddr.m_n64[1];

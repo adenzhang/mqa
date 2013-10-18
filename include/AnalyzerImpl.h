@@ -91,7 +91,6 @@ namespace mqa {
         static bool VQStatsNotifyHandler(CMQmonInterface* pInterface, CMQmonStream* pStream, MQmonNotifyType nType, MQmonNotifyInfo* pInfo);
         static void InitVQStats(LOGLEVEL_TYPE loglevel);
         static void FiniVQStats(void);
-        static LONG g_nInstances;
     };
 
 } // namespace xtreme::mqa

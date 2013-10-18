@@ -19,6 +19,12 @@
 
 #include <ftl/FixedSizePool.h>
 
+#ifndef WIN32  // linux
+#include <unistd.h>
+#define Sleep(milli) usleep(milli*1000)
+#endif
+
+
 using namespace std;
 
 typedef mqa::StatsFrameParser FrameParser;
@@ -53,7 +59,7 @@ long double GetTimeMicroSec()
 #else
     timespec t;
     if( 0 == clock_gettime(CLOCK_MONOTONIC, &t) )
-        atime = (long double)s.tv_sec * (long double)1.0E6 + (long double)s.tv_nsec / (long double)1.0E3;
+        atime = (long double)t.tv_sec * (long double)1.0E6 + (long double)t.tv_nsec / (long double)1.0E3;
 #endif
     return atime;
 }
@@ -394,7 +400,7 @@ void run(const string pcapfn, int nThread)
     time1 = GetTimeMicroSec();
     VqtDebug("--- streams:%d NLOOP:%d Npackets:%d, NCalc:%d time:%dmilli ---\n", flows.size(),NLOOP, packetList.size(), nCalc, int(time1-time0)/1000 );
 
-    VqtDebug("---------- Streams Summaries -------\n");
+    VqtDebug("---------- Streams Summaries %d-------\n", flows.size());
     nCalc = 0;
     for(FlowMap::iterator it= flows.begin(); it!=flows.end(); ++it) {
         for(int nDir=0; nDir<2; ++nDir) {

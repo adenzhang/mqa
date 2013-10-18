@@ -24,9 +24,9 @@ namespace mqa {
 
         // currently header extension is not parsed.
         virtual bool Parse();
-        virtual bool IsValid();
+        virtual bool IsValid() const ;
 
-        virtual const char *GetPayload(int* len);
+        virtual const char *GetPayload(int* len) const ;
     };
 
 }  // namespace mqa

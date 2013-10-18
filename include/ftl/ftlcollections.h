@@ -88,6 +88,7 @@ namespace ftl{
 #else
     typedef long long           INT64;
     typedef unsigned long long  UINT64;
+    typedef intptr_t            INT_PTR;
 #endif
 
 #define STDCALL
@@ -3063,7 +3064,7 @@ inline bool RBTree< K, V, KTraits, VTraits >::IsNil(Node *p) const throw()
 }
 
 template< typename K, typename V, class KTraits, class VTraits >
-inline void RBTree< K, V, KTraits, VTraits >::SetNil(Node **p)
+inline void RBTree< K, V, KTraits, VTraits >::SetNil(Node **p) throw()
 {
 	FTLENSURE( p != NULL );
 	*p = _pNil;
@@ -3322,7 +3323,7 @@ typename RBTree< K, V, KTraits, VTraits >::Node* RBTree< K, V, KTraits, VTraits 
 }
 
 template< typename K, typename V, class KTraits, class VTraits >
-void RBTree< K, V, KTraits, VTraits >::FreeNode(Node* pNode)
+void RBTree< K, V, KTraits, VTraits >::FreeNode(Node* pNode) throw()
 {
 	FTLENSURE( pNode != NULL );
 	pNode->~Node();
@@ -3504,7 +3505,7 @@ typename RBTree< K, V, KTraits, VTraits >::Node* RBTree< K, V, KTraits, VTraits 
 }
 
 template< typename K, typename V, class KTraits, class VTraits >
-void RBTree< K, V, KTraits, VTraits >::SwapNode(Node* pDest, Node* pSrc)
+void RBTree< K, V, KTraits, VTraits >::SwapNode(Node* pDest, Node* pSrc) throw()
 {
 	FTLENSURE( pDest != NULL );
 	FTLENSURE( pSrc != NULL );
@@ -3562,7 +3563,9 @@ typename RBTree< K, V, KTraits, VTraits >::Node* RBTree< K, V, KTraits, VTraits 
 }
 
 template< typename K, typename V, class KTraits, class VTraits >
-void RBTree< K, V, KTraits, VTraits >::RBDeleteFixup(Node* pNode)
+
+
+void RBTree< K, V, KTraits, VTraits >::RBDeleteFixup(Node* pNode) throw()
 {
 	FTLENSURE( pNode != NULL );
 
@@ -3903,6 +3906,13 @@ class RBMap :
 	public RBTree< K, V, KTraits, VTraits >
 {
 public:
+    typedef RBTree< K, V, KTraits, VTraits > RBTREE;
+    typedef typename RBTREE::KINARGTYPE KINARGTYPE;
+    typedef typename RBTREE::KOUTARGTYPE KOUTARGTYPE;
+    typedef typename RBTREE::VINARGTYPE VINARGTYPE;
+    typedef typename RBTREE::VOUTARGTYPE VOUTARGTYPE;
+    typedef typename RBTREE::Pair Pair;
+
 	explicit RBMap( size_t nBlockSize = 10 ) throw();
 	~RBMap() throw();
 
@@ -3969,7 +3979,7 @@ bool RBMap< K, V, KTraits, VTraits >::RemoveKey( KINARGTYPE key ) throw()
 	POSITION pos = Lookup( key );
 	if( pos != NULL )
 	{
-		RemoveAt( pos );
+        RBTREE::RemoveAt( pos );
 
 		return( true );
 	}
@@ -3984,7 +3994,14 @@ class RBMultiMap :
 	public RBTree< K, V, KTraits, VTraits >
 {
 public:
-	explicit RBMultiMap( size_t nBlockSize = 10 ) throw();
+    typedef RBTree< K, V, KTraits, VTraits > RBTREE;
+    typedef typename RBTREE::KINARGTYPE KINARGTYPE;
+    typedef typename RBTREE::KOUTARGTYPE KOUTARGTYPE;
+    typedef typename RBTREE::VINARGTYPE VINARGTYPE;
+    typedef typename RBTREE::VOUTARGTYPE VOUTARGTYPE;
+    typedef typename RBTREE::Pair Pair;
+
+    explicit RBMultiMap( size_t nBlockSize = 10 ) throw();
 	~RBMultiMap() throw();
 
 	POSITION Insert( KINARGTYPE key, VINARGTYPE value ) ;
@@ -4009,7 +4026,7 @@ RBMultiMap< K, V, KTraits, VTraits >::~RBMultiMap() throw()
 }
 
 template< typename K, typename V, class KTraits, class VTraits >
-POSITION RBMultiMap< K, V, KTraits, VTraits >::Insert( KINARGTYPE key, VINARGTYPE value ) throw( ... )
+POSITION RBMultiMap< K, V, KTraits, VTraits >::Insert( KINARGTYPE key, VINARGTYPE value )
 {
 	return( RBInsert( key, value ) );
 }
@@ -4024,7 +4041,7 @@ size_t RBMultiMap< K, V, KTraits, VTraits >::RemoveKey( KINARGTYPE key ) throw()
 	{
 		POSITION posDelete = pos;
 		GetNextWithKey( pos, key );
-		RemoveAt( posDelete );
+        RBTREE::RemoveAt( posDelete );
 		nElementsDeleted++;
 	}
 
@@ -4041,7 +4058,8 @@ template< typename K, typename V, class KTraits, class VTraits >
 const typename RBMultiMap< K, V, KTraits, VTraits >::Pair* RBMultiMap< K, V, KTraits, VTraits >::GetNextWithKey( POSITION& pos, KINARGTYPE key ) const throw()
 {
 	FTLASSERT( pos != NULL );
-	const Pair* pNode = GetNext( pos );
+
+    const Pair* pNode = RBTREE::GetNext( pos );
 	if( (pos == NULL) || !KTraits::CompareElements( static_cast< Pair* >( pos )->_key, key ) )
 	{
 		pos = NULL;
@@ -4054,7 +4072,8 @@ template< typename K, typename V, class KTraits, class VTraits >
 typename RBMultiMap< K, V, KTraits, VTraits >::Pair* RBMultiMap< K, V, KTraits, VTraits >::GetNextWithKey( POSITION& pos, KINARGTYPE key ) throw()
 {
 	FTLASSERT( pos != NULL );
-	Pair* pNode = GetNext( pos );
+
+    Pair* pNode = RBTREE::GetNext( pos );
 	if( (pos == NULL) || !KTraits::CompareElements( static_cast< Pair* >( pos )->_key, key ) )
 	{
 		pos = NULL;

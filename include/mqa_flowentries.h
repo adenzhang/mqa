@@ -208,7 +208,7 @@ namespace mqa {
     };
     typedef VQStatsSubEntry VQStatsConnSubEntry;
 
-    typedef ftl::Map<VQStatsConnSubEntryKey, VQStatsConnSubEntry*, ftl::ElementTraits<VQStatsConnSubEntryKey>> VQStatsConnSubEntryMap;
+    typedef ftl::Map<VQStatsConnSubEntryKey, VQStatsConnSubEntry*, ftl::ElementTraits<VQStatsConnSubEntryKey> > VQStatsConnSubEntryMap;
 
     class VQStatsConnEntry2
     {
@@ -353,7 +353,7 @@ namespace mqa {
 #endif
     };
 
-    typedef ftl::Map<VQStatsTunnelEntryKey, VQStatsTunnelEntry*, ftl::ElementTraits<VQStatsTunnelEntryKey>> VQStatsTunnelEntryMap;
+    typedef ftl::Map<VQStatsTunnelEntryKey, VQStatsTunnelEntry*, ftl::ElementTraits<VQStatsTunnelEntryKey> > VQStatsTunnelEntryMap;
 
     class VQStatsTunnelEntryTable
     {

@@ -30,9 +30,10 @@
 
 
 
-#else // linux
+#else //--- linux
 
 #include <sys/time.h>
+#include <linuxbasetsd.h>
 
 #endif // WIN32
 

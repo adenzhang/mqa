@@ -39,9 +39,12 @@ namespace mqa {
         pStatsEntry->nLimPortNum = Entry1Key.nLimPort;
         Entry2Key.ipSrc.Dump(pStatsEntry->ipLowerSrc);
         Entry2Key.ipDest.Dump(pStatsEntry->ipLowerDest);
-        pStatsEntry->nVLANMPLSIds = min(Entry1Key.nVLANMPLSIds, RTSD_MAX_VLANMPLS_IDS);
+
+
+        pStatsEntry->nVLANMPLSIds = std::min((int)Entry1Key.nVLANMPLSIds, (int)RTSD_MAX_VLANMPLS_IDS);
         for (int i = 0; i < Entry1Key.nVLANMPLSIds; ++i)
             pStatsEntry->aVLANMPLSIds[i] = Entry1Key.aVLANMPLSIds[i];
+
         nOffset += FIELD_OFFSET(EntryType, aVLANMPLSIds) + sizeof(pStatsEntry->aVLANMPLSIds[0]) * pStatsEntry->nVLANMPLSIds;
         stringstream ss;
         ss << Entry2Key.ipSrc << " --> " << Entry2Key.ipDest;
@@ -143,7 +146,7 @@ namespace mqa {
         EntryKey.ipSrc.Dump(pStatsEntry->ipLowerSrc);
         EntryKey.ipDest.Dump(pStatsEntry->ipLowerDest);
         pStatsEntry->TEI = EntryKey.TEI;
-        pStatsEntry->nVLANMPLSIds = min(EntryKey.nVLANMPLSIds, RTSD_MAX_VLANMPLS_IDS);
+        pStatsEntry->nVLANMPLSIds = std::min((int)EntryKey.nVLANMPLSIds, (int)RTSD_MAX_VLANMPLS_IDS);
         for (int i = 0; i < EntryKey.nVLANMPLSIds; ++i)
             pStatsEntry->aVLANMPLSIds[i] = EntryKey.aVLANMPLSIds[i];
         nOffset += FIELD_OFFSET(EntryType, aVLANMPLSIds) + sizeof(pStatsEntry->aVLANMPLSIds[0]) * pStatsEntry->nVLANMPLSIds;
@@ -221,11 +224,11 @@ namespace mqa {
         }
     }
 
-    void VQStatsRtsmDumper::setPrevTime(ftl::timenano& t)
+    void VQStatsRtsmDumper::setPrevTime(const ftl::timenano& t)
     {
         m_PrevTime = t;
     }
-    bool VQStatsRtsmDumper::processTime(ftl::timenano& t)
+    bool VQStatsRtsmDumper::processTime(const ftl::timenano& t)
     {
         setPrevTime(t);
 

@@ -6,6 +6,10 @@
 #include <iostream>
 #include <string>
 
+#ifndef WIN32
+#include <stdarg.h>
+#endif
+
 #define VQT_LOG_ERROR   1
 #define VQT_LOG_INFO    2
 #define VQT_LOG_DEBUG   3
