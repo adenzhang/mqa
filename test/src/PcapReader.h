@@ -5,7 +5,9 @@
 
 #include <stdio.h>
 #include <string>
-#include "stdint.h"
+#ifdef WIN32
+#include "winstdint.h"
+#endif
 #include <boost/thread.hpp>
 
 typedef struct _Pcap_File_Hdr

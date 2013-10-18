@@ -80,5 +80,6 @@ HEADERS += \
     ../../include/classifyconsts.h \
     ../../include/CalculateRFactor.h \
     ../../include/AnalyzerImpl.h \
-    ../../include/mqa_global.h
+    ../../include/mqa_global.h \
+    ../../include/linuxbasetsd.h
            

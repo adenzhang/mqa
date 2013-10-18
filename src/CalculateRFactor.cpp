@@ -1,3 +1,4 @@
+#define NOMINMAX
 #include "CalculateRFactor.h"
 #include "RtpTypes.h"
 #include <math.h>

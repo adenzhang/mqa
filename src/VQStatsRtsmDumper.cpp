@@ -1,6 +1,10 @@
+#define NOMINMAX
+
 #include "VQStatsRtsmDumper.h"
 
 #include "MqaAssert.h"
+
+#include <algorithm>
 
 namespace mqa {
 
