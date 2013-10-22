@@ -17,7 +17,8 @@ public:
 
     bool post(FUNCTION_T pFun, void *pParam=NULL);
 
-    size_t task_count(); // 
+    size_t task_count(); // count of pending tasks
+    size_t working_count(); // count of current working tasks
 protected:
     void *priv;
 };

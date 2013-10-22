@@ -11,6 +11,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef WIN32
+#include <string>
+#endif
+
 #ifndef _MSC_VER
 #include <stdint.h>
 #endif
@@ -470,7 +474,97 @@ inline HRESULT FtlMultiply(unsigned long _FTL_W64 *piResult, unsigned long _FTL_
 			return (wchar_t)towlower(x);
 		}
 	};
-/*
+
+    template<typename CHAR>
+    class ElementTraits<std::basic_string<CHAR> >:
+        public ElementTraitsBase< std::basic_string<CHAR> >,
+        public DefaultHashTraits< std::basic_string<CHAR> >,
+        public DefaultCompareTraits< std::basic_string<CHAR> >
+    {
+    public:
+        typedef std::basic_string<CHAR> STRING_T;
+
+//    template<>
+//    class ElementTraits<std::string>:
+//        public ElementTraitsBase< std::string >,
+//        public DefaultHashTraits< std::string >,
+//        public DefaultCompareTraits< std::string >
+//    {
+//    public:
+//        typedef std::string STRING_T;
+
+        typedef typename STRING_T::value_type         XCHAR;
+        typedef XCHAR       *PXCHAR;
+        typedef const XCHAR *PCXCHAR;
+
+        typedef const STRING_T  &INARGTYPE;
+        typedef STRING_T        &OUTARGTYPE;
+
+        typedef DefaultCharTraits<XCHAR> CharTraits;
+
+        static ULONG Hash(INARGTYPE str) {
+            ULONG           nHash = 0;
+            for (int i=0; str[i] != '\0'; ++i)
+                nHash = (nHash<<5)+nHash+CharTraits::CharToUpper(str[i]);
+            return( nHash );
+        }
+        static bool CompareElements( INARGTYPE str1, INARGTYPE str2 ) throw()
+        {
+            return( str1.compare( str2 ) == 0 );
+        }
+
+        static int CompareElementsOrdered( INARGTYPE str1, INARGTYPE str2 ) throw()
+        {
+            return( str1.compare( str2 ) );
+        }
+
+    };
+
+    template<typename CHAR>
+    class ElementTraitsI:
+        public ElementTraitsBase< std::basic_string<CHAR> >,
+        public DefaultHashTraits< std::basic_string<CHAR> >,
+        public DefaultCompareTraits< std::basic_string<CHAR> >
+    {
+    public:
+        typedef std::basic_string<CHAR> STRING_T;
+        typedef typename STRING_T::value_type         XCHAR;
+        typedef XCHAR       *PXCHAR;
+        typedef const XCHAR *PCXCHAR;
+
+        typedef const STRING_T  &INARGTYPE;
+        typedef STRING_T        &OUTARGTYPE;
+
+        typedef DefaultCharTraits<XCHAR> CharTraits;
+
+        static ULONG Hash(INARGTYPE str) {
+            ULONG           nHash = 0;
+            for (int i=0; i<str.size(); ++i)
+                nHash = (nHash<<5)+nHash+CharTraits::CharToUpper(str[i]);
+            return( nHash );
+        }
+        static bool CompareElements( INARGTYPE str1, INARGTYPE str2 ) throw()
+        {
+            for (int i=0; i<str1.size() && i<str2.size(); ++i)
+                if( CharTraits::CharToUpper(str1[i]) != CharTraits::CharToUpper(str2[i]) ) return false;
+            return true;
+        }
+
+        static int CompareElementsOrdered( INARGTYPE str1, INARGTYPE str2 ) throw()
+        {
+            int s = 0;
+            for (int i=0; i<str1.size() && i<str2.size(); ++i) {
+                s = CharTraits::CharToUpper(str1[i]) - CharTraits::CharToUpper(str2[i]);
+                if(s==0) continue;
+                return s;
+            }
+            return s;
+        }
+
+    };
+
+
+    /*
 	template< typename T, class CharTraits = DefaultCharTraits<T::XCHAR> >
 	class StringElementTraitsI :
 		public ElementTraitsBase< T >
@@ -1138,17 +1232,18 @@ template< typename E, class ETraits = ElementTraits< E > >
 	class List
 	{
 	public:
-		typedef typename ETraits::INARGTYPE INARGTYPE;
+		//typedef typename ETraits::INARGTYPE INARGTYPE;
+        typedef const E& INARGTYPE;
 
 	private:
 		class Node :
 			public __POSITION
 		{
 		public:
-			Node()
+            Node()
 			{
 			}
-			Node( INARGTYPE element ) :
+			Node( INARGTYPE element) :
 			_element( element )
 			{
 			}
@@ -1161,10 +1256,118 @@ template< typename E, class ETraits = ElementTraits< E > >
 			Node* _pPrev;
 			E _element;
 
+            inline Node* NextNode( )
+            {
+                return (_pNext );
+            }
+            inline Node* PrevNode()
+            {
+                return ( _pPrev );
+            }
 		private:
 			Node( const Node& ) throw();
 		};
 
+    public:
+
+        //---   iterator operations ----
+        template<typename Node_T>
+        class iterator_t
+        {
+            Node_T      *node;
+
+        public:
+            iterator_t(Node_T* p=NULL):node(p){}
+
+            E* operator->() {
+                return &node->_element;
+            }
+            E& operator*() {
+                return node->_element;
+            }
+            iterator_t& operator++() {
+                if( node == NULL) return *this;
+                Node* pNext = node->NextNode();
+                node = (Node_T*) pNext ;
+                return *this;
+            }
+            iterator_t operator++(int) {
+                iterator_t tmp(*this);
+                operator++();
+                return tmp;
+            }
+            iterator_t& operator--() {
+                if( node == NULL) return *this;
+                Node* pNext = node->PrevNode();
+                node = (Node_T*) pNext ;
+                return *this;
+            }
+            iterator_t operator--(int) {
+                iterator_t tmp(*this);
+                operator--();
+                return tmp;
+            }
+            bool operator==(const iterator_t& it) {
+                return node == it.node;
+            }
+            bool operator!=(const iterator_t& it) {
+                return !operator==(it);
+            }
+        };
+        typedef iterator_t<Node> iterator;
+        typedef iterator_t<const Node> const_iterator;
+
+        inline void push_back(INARGTYPE v) {
+            AddTail(v);
+        }
+        inline void push_front(INARGTYPE v) {
+            AddHead(v);
+        }
+        inline void insert(iterator it, INARGTYPE v) {
+            InsertBefore(it.node, v);
+        }
+        iterator begin(){
+            return iterator(_pHead);
+        }
+        iterator end() {
+            return iterator();
+        }
+        inline iterator erase(INARGTYPE key) {
+            Node *p = Find(key, NULL);
+            if(p==NULL) return iterator();
+            Node *next = p->NextNode();
+            RemoveAt(p);
+            return iterator(next, this);
+        }
+        template <typename iterator_T>
+        inline iterator erase(iterator_T it) {
+            iterator_T itNext = it;
+            itNext++;
+            RemoveAt(it->node);
+            return itNext;
+        }
+        const_iterator cbegin(){
+            return const_iterator(_pHead, this);
+        }
+        const_iterator cend(){
+            return const_iterator(NULL, this);
+        }
+        iterator find(INARGTYPE key){
+            return iterator(Find(key, NULL), this);
+        }
+        const_iterator find(INARGTYPE key) const {
+            return const_iterator(Find(key, NULL), this);
+        }
+        size_t size()const{
+            return GetCount();
+        }
+
+        void clear() {
+            RemoveAll();
+        }
+        bool empty()const{
+            return IsEmpty();
+        }
 	public:
 		List( UINT nBlockSize = 10 ) throw();
 
@@ -1987,10 +2190,14 @@ template< typename K, typename V, class KTraits = ElementTraits< K >, class VTra
 class Map
 {
 public:
-	typedef typename KTraits::INARGTYPE KINARGTYPE;
-	typedef typename KTraits::OUTARGTYPE KOUTARGTYPE;
-	typedef typename VTraits::INARGTYPE VINARGTYPE;
-	typedef typename VTraits::OUTARGTYPE VOUTARGTYPE;
+    typedef const K& KINARGTYPE;
+    typedef K&       KOUTARGTYPE;
+    typedef const V& VINARGTYPE;
+    typedef V&       VOUTARGTYPE;
+	//typedef typename KTraits::INARGTYPE KINARGTYPE;
+	//typedef typename KTraits::OUTARGTYPE KOUTARGTYPE;
+	//typedef typename VTraits::INARGTYPE VINARGTYPE;
+	//typedef typename VTraits::OUTARGTYPE VOUTARGTYPE;
 
 	class Pair :
 		public __POSITION
@@ -1998,13 +2205,106 @@ public:
 	protected:
 		Pair( KINARGTYPE key ) :
 			 _key( key )
+                 , first(key), second(_value)
 			 {
 			 }
 
 	public:
+        Pair( KINARGTYPE key, VINARGTYPE v ) :
+          _key(key), _value(v)
+              , first(key), second(_value) {}
+
 		const K _key;
 		V _value;
+        const K   first;
+        V&        second;
 	};
+
+    //---   iterator operations ----
+    template<typename Pair_t>
+    class iterator_t
+    {
+        Pair_t     *pair;
+        Map        *pMap;
+    public:
+        iterator_t(Pair_t* p, Map* m):pair(p), pMap(m){}
+
+        Pair_t* operator->() {
+            return pair;
+        }
+        Pair_t& operator*() {
+            return *pair;
+        }
+        iterator_t& operator++() {
+            FTLASSUME( _ppBins != NULL );
+            FTLASSERT( pos != NULL );
+            if( pair == NULL) return *this;
+
+            Node* pNode = static_cast< Node* >( pair );
+            Node* pNext = pMap->FindNextNode( pNode );
+
+            pair = (Pair_t*) pNext ;
+            return *this;
+        }
+        iterator_t operator++(int) {
+            iterator_t tmp(*this);
+            operator++();
+            return tmp;
+        }
+        bool operator==(const iterator_t& it) {
+            return pMap == it.pMap && pair == it.pair;
+        }
+        bool operator!=(const iterator_t& it) {
+            return !operator==(it);
+        }
+    };
+    typedef iterator_t<Pair> iterator;
+    typedef iterator_t<const Pair> const_iterator;
+
+    inline void insert(const Pair& p) {
+        SetAt(p.first, p.second);
+    }
+    iterator begin(){
+        return iterator(static_cast<Pair*>(GetStartPosition()), this);
+    }
+    iterator end() {
+        return iterator(NULL, this);
+    }
+    inline iterator erase(KINARGTYPE key) {
+        Node *p = Lookup(key);
+        if(p==NULL) return iterator(NULL, this);
+        Node *next = FindNextNode(p);
+        RemoveNode(p, NULL);
+        return iterator(next, this);
+    }
+    template <typename iterator_T>
+    inline iterator erase(iterator_T it) {
+        iterator_T itNext = it;
+        itNext++;
+        RemoveAtPos(it->first);
+        return itNext;
+    }
+    const_iterator cbegin(){
+        return const_iterator(static_cast<const Pair*>(GetStartPosition()), this);
+    }
+    const_iterator cend(){
+        return const_iterator(NULL, this);
+    }
+    iterator find(KINARGTYPE key){
+        return iterator(Lookup(key), this);
+    }
+    const_iterator find(KINARGTYPE key) const {
+        return const_iterator(Lookup(key), this);
+    }
+    size_t size()const{
+        return GetCount();
+    }
+    bool empty()const{
+        return IsEmpty();
+    }
+    void clear(){
+        RemoveAll();
+    }
 
 private:
 	class Node :

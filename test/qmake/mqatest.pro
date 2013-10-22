@@ -20,7 +20,10 @@ linux-g++-64:                           ARCH=x64
 CONFIG(debug, debug|release) :          BUILDMODE=debug
 CONFIG(release, debug|release) :        BUILDMODE=release
 
-#----------------- use libaries ---------------------
+#----------------- Flags ---------------------
+DEFINES += BOOST_ALL_DYN_LINK
+
+#----------------- use libraries ---------------------
 # DESTDIR
 DESTDIR = $$PWD/../../lib/$$ARCH/$$BUILDMODE
 
@@ -30,13 +33,14 @@ MQA_LIBDIR = $$PWD/../../lib/$$ARCH/$$BUILDMODE
 LIBS += -L$$MQA_LIBDIR -lmqa
 
 win32 {
+#    QMAKE_CXXFLAGS_RELEASE += /GS-
     # libary boost path
-    BOOSTDIR = D:/onprogram/clib/boost
+    !BOOSTDIR:    BOOSTDIR = D:\onprogram\clib\boost
 
     LIBS += -lws2_32
 }else { #--- linux -------------------
     # libary boost path
-    BOOSTDIR = /home/jiezhang/test/boost/boost-gcc-shared
+    !BOOSTDIR:    BOOSTDIR = /home/jiezhang/test/boost/boost-gcc-shared
 
     LIBS += -lboost_system -lboost_program_options -lboost_thread
 }  # linux
@@ -79,5 +83,5 @@ SOURCES += \
 HEADERS += \
            ../src/LogUtility.h \
            ../src/PCapReader.h \
-    ../src/winstdint.h
+           ../src/winstdint.h
            

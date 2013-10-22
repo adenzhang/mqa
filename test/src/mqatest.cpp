@@ -29,6 +29,7 @@ using namespace std;
 
 typedef mqa::StatsFrameParser FrameParser;
 typedef std::list<mqa::StatsFrameParser*> FrameParserList;
+//typedef ftl::List<mqa::StatsFrameParser*> FrameParserList;
 
 #define MULTI_THREAD
 
@@ -131,9 +132,20 @@ struct IpFlowPair {
         return src == a.src && dest == a.dest || src == a.dest && dest == a.src;
     }
 };
-struct FlowPairHash{
+struct FlowPairHash
+    //: public ftl::ElementTraitsBase<IpFlowPair>
+{
+    // for boost::unordered_map
     size_t operator()(const IpFlowPair& a) const{
         return a.src.ip.Hash() ^ a.src.port ^ a.dest.ip.Hash() ^ a.dest.port;
+    }
+    // for ftl::Map
+    static unsigned long Hash(const IpFlowPair& a){
+        return a.src.ip.Hash() ^ a.src.port ^ a.dest.ip.Hash() ^ a.dest.port;
+    }
+    // for ftl::Map
+    static bool CompareElements(const IpFlowPair& a, const IpFlowPair& b) {
+        return a == b;
     }
 };
 typedef boost::shared_ptr<ThreadPool> ThreadPoolPtr;
@@ -180,7 +192,8 @@ struct FlowStreamPair {
     }
 };
 typedef boost::shared_ptr<FlowStreamPair> FlowStreamPairPtr;
-typedef boost::unordered_map<IpFlowPair, FlowStreamPairPtr, FlowPairHash> FlowMap;
+//typedef boost::unordered_map<IpFlowPair, FlowStreamPairPtr, FlowPairHash> FlowMap;
+typedef ftl::Map<IpFlowPair, FlowStreamPairPtr, FlowPairHash> FlowMap;
 
 template<typename LOCK_T>
 struct WaitTask
@@ -336,29 +349,31 @@ void run(const string pcapfn, int nThread)
             mqa::StatsFrameParser *parser = *it;
             nPacket ++;
 
-            IpPort src(parser->IsIpv4(), parser->SrcIp(), parser->IpTransInfo().TransInfo.nSrcPort);
-            IpPort dest(parser->IsIpv4(), parser->DestIp(), parser->IpTransInfo().TransInfo.nDestPort);
-            int nDir = FlowDirection(src, dest);
-            IpFlowPair aFlow(src,dest);
+            IpPort                src(parser->IsIpv4(), parser->SrcIp(), parser->IpTransInfo().TransInfo.nSrcPort);
+            IpPort                dest(parser->IsIpv4(), parser->DestIp(), parser->IpTransInfo().TransInfo.nDestPort);
+            int                   nDir = FlowDirection(src, dest);
+            IpFlowPair            aFlow(src,dest);
 
             FlowMap::iterator     itFlow = flows.find(aFlow);
             mqa::CMQmonInterface *monif=NULL; 
             mqa::CMQmonStream    *pStream = NULL;
-            FlowStreamPair       *strmPair = NULL;
+            FlowStreamPairPtr     strmPair;
             UINT32                rtpLen;
             const UINT8          *pRtp = parser->GetTransPayload(rtpLen);
-            bool                  bNewFlow;
+
             if( itFlow == flows.end() ) {  // new flow
                 // insert new into flows
                 // pick up a thread
-                strmPair = new FlowStreamPair(aFlow, threadpools[lastThreadIdx++]);
+                strmPair.reset( new FlowStreamPair(aFlow, threadpools[lastThreadIdx++]) );
                 lastThreadIdx %= nThread;
-                flows.insert(std::make_pair(aFlow, strmPair));
-            }else{
-                strmPair = itFlow->second.get();
+                //flows.insert(std::make_pair(aFlow, strmPair));
+                //flows.insert(FlowMap::Pair(aFlow, FlowStreamPairPtr(strmPair)));
+                flows[aFlow] = strmPair;
+            } else {
+                strmPair = itFlow->second;
             }
             StreamTask *pTask = NULL;
-            for(int i=0;  i<MAX_TRY_ALLOC && !(pTask=new StreamTask(strmPair, nDir, pRtp, rtpLen, parser)); ++i ) {
+            for(int i=0;  i<MAX_TRY_ALLOC && !(pTask=new StreamTask(strmPair.get(), nDir, pRtp, rtpLen, parser)); ++i ) {
                 Sleep(50);
             }
             ASSERTMSG2(pTask, "Failed to new StreamTask due to small pool:%d", MAX_TASKS_IN_POOL);
@@ -375,26 +390,17 @@ void run(const string pcapfn, int nThread)
 
     //if(bMultiThread) 
     {
-        // append last tasks to thread pools
-        //boost::barrier bar(flows.size()+1);
-        //WaitTask<boost::barrier>   lastTask(bar);
-        //for(FlowMap::iterator it = flows. begin(); it!=flows.end(); ++it) {
-        //    it->second->thread->post(WaitTask<boost::barrier>::dowork, &lastTask);
-        //}
-        //bar.wait();
-
         // join all threads
         for(;;) {
             int n=0;
             Sleep(20);
-            for(FlowMap::iterator it= flows.begin(); it!=flows.end(); ++it) {
+            for(FlowMap::iterator it= flows.begin(); n==0 && it!=flows.end(); ++it) {
                 n += it->second->thread->task_count();
+                n += it->second->thread->working_count();
             }
             if( n == 0 )
                 break;
         }
-
-        // potential issue: there may be some threads still processing the last 
     }
 
     time1 = GetTimeMicroSec();
@@ -466,7 +472,9 @@ void run0(const string pcapfn = "call-rodney-002-whole.pcap")
             strmPair->itf[nDir] = monif;
             strmPair->strm[nDir] = pStream;
 
-            flows.insert(std::make_pair(aFlow, strmPair));
+            ////flows.insert(std::make_pair(aFlow, strmPair));
+            //flows.insert(FlowMap::Pair(aFlow, strmPair));
+            flows[aFlow] = strmPair;
         }else{  // old flow pair
             FlowStreamPairPtr& p = itFlow->second;
             if( p->strm[nDir] ) {
@@ -535,10 +543,20 @@ void run0(const string pcapfn = "call-rodney-002-whole.pcap")
     }
     packetList.clear();
 }
+void test_ftl()
+{
+    typedef ftl::Map<string, int > StringMap;
+    typedef ftl::Map<wstring, int > WStringMap;
+    StringMap amap;
+    WStringMap awmap;
+    amap.insert(StringMap::Pair("asd", 10));
+    awmap.insert(WStringMap::Pair(L"asd", 10));
+
+}
 int main(int argc, char* argv[])
 {
     string fn;
-    int  nThread = -1;
+    int    nThread = -1;
     using namespace boost::program_options;
 
     boost::program_options::options_description ops;

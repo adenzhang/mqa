@@ -122,7 +122,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="src;..\src;..\include;..\AnalyzerCommon;&quot;D:\onprogram\clib\boost-1_53\include&quot;"
+				AdditionalIncludeDirectories="src;..\src;..\include;..\AnalyzerCommon;&quot;$(BOOSTDIR)\include&quot;"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -145,7 +145,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="ws2_32.lib mqa.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="&quot;D:\onprogram\clib\boost-1_53\lib\x64&quot;;&quot;$(PlatformName)\$(ConfigurationName)&quot;"
+				AdditionalLibraryDirectories="&quot;$(BOOSTDIR)\lib\$(PlatformName)\$(ConfigurationName)&quot;;&quot;$(PlatformName)\$(ConfigurationName)&quot;"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="17"
@@ -279,9 +279,10 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="src;..\src;..\include;..\AnalyzerCommon;&quot;D:\onprogram\clib\boost-1_53\include&quot;"
-				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
+				AdditionalIncludeDirectories="src;..\src;..\include;..\AnalyzerCommon;&quot;$(BOOSTDIR)\include&quot;"
+				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;BOOST_ALL_DYN_LINK"
 				RuntimeLibrary="2"
+				BufferSecurityCheck="true"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
@@ -300,7 +301,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="ws2_32.lib mqa.lib"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="&quot;D:\onprogram\clib\boost-1_53\lib\x64&quot;;&quot;$(PlatformName)\$(ConfigurationName)&quot;"
+				AdditionalLibraryDirectories="&quot;$(BOOSTDIR)\lib\$(PlatformName)\$(ConfigurationName)&quot;;&quot;$(PlatformName)\$(ConfigurationName)&quot;"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				OptimizeReferences="2"
@@ -341,14 +342,6 @@
 			Filter="cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx"
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
-			<File
-				RelativePath=".\mqatest.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\stdafx.cpp"
-				>
-			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -374,59 +367,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\MainInstance.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\src\ManualParser_.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						ObjectFile="$(IntDir)\$(InputName)1.obj"
-						XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						ObjectFile="$(IntDir)\$(InputName)1.obj"
-						XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						ObjectFile="$(IntDir)\$(InputName)1.obj"
-						XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						ObjectFile="$(IntDir)\$(InputName)1.obj"
-						XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath=".\src\OptionConfig.cpp"
+				RelativePath=".\src\mqatest.cpp"
 				>
 			</File>
 			<File
 				RelativePath=".\src\PcapReader.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\TestBufferPool.cpp"
 				>
 			</File>
 		</Filter>
@@ -438,19 +383,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\ManualParser_.h"
-				>
-			</File>
-			<File
-				RelativePath=".\src\OptionConfig.h"
-				>
-			</File>
-			<File
 				RelativePath=".\src\PcapReader.h"
-				>
-			</File>
-			<File
-				RelativePath=".\src\stdint.h"
 				>
 			</File>
 		</Filter>

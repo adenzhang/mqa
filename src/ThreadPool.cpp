@@ -1,6 +1,7 @@
 #include "ThreadPool.h"
 #include <queue>
 #include <boost/thread.hpp>
+#include <boost/atomic.hpp>
 
 #include "ftl/FifoPool.h"
 
@@ -69,7 +70,7 @@ struct thread_pool_if
     virtual bool run_task(ThreadPool::FUNCTION_T pFun, void *pParam=NULL) = 0;
 
     virtual size_t task_count() = 0;
-
+    virtual size_t working_count() = 0;
 };
 typedef FiFoQueue<TASK_T> FiFoTaskQ;
 template<typename QUEUE_TYPE>
@@ -77,13 +78,14 @@ class thread_pool
     : public thread_pool_if
 {
 private:
-    QUEUE_TYPE         tasks_;
+    QUEUE_TYPE                tasks_;
 
-    boost::thread_group threads_;
-    boost::mutex mutex_;
+    boost::thread_group       threads_;
+    boost::mutex              mutex_;
     boost::condition_variable condition_;
-    bool running_;
-    size_t       maxTasks_;
+    bool                      running_;
+    size_t                    maxTasks_;
+    boost::atomic<int>        workingThreads_;
 public:
 
     /// @brief Constructor.
@@ -92,6 +94,7 @@ public:
         maxTasks_(task_size)
         ,running_( true )
         ,tasks_(task_size)
+        ,workingThreads_(0)
     {
         for ( std::size_t i = 0; i < pool_size; ++i )
         {
@@ -117,23 +120,6 @@ public:
         catch ( ... ) {}
     }
 
-    /// @brief Add task to the thread pool if a thread is currently available.
-    template < typename Task >
-    void run_task( Task task )
-    {
-        //boost::unique_lock< boost::mutex > lock( mutex_ );
-
-        //// If no threads are available, then return.
-        //if ( 0 == available_ ) return;
-
-        //// Decrement count, indicating thread is no longer available.
-        //--available_;
-
-        //// Set task and signal condition variable so that a worker thread will
-        //// wake up andl use the task.
-        //tasks_.push( boost::function< void() >( task ) );
-        //condition_.notify_one();
-    }
     bool run_task(ThreadPool::FUNCTION_T f, void* param)
     {
         boost::unique_lock< boost::mutex > lock( mutex_ );
@@ -174,6 +160,9 @@ public:
         size_t n = tasks_.size();
         return n;
     }
+    size_t working_count() {
+        return workingThreads_.load(boost::memory_order_relaxed);
+    }
 private:
     /// @brief Entry point for pool threads.
     void pool_main()
@@ -195,18 +184,22 @@ private:
             // after running the task.  This is useful in the event that the
             // function contains shared_ptr arguments bound via bind.
             {
+                // Run the task.
+
                 TASK_T task = tasks_.front();
                 tasks_.pop();
 
+                workingThreads_.fetch_add(1, boost::memory_order_relaxed);
+
                 lock.unlock();
 
-                // Run the task.
                 try
                 {
                     task();
                 }
                 // Suppress all exceptions.
                 catch ( ... ) {}
+                workingThreads_.fetch_sub(1, boost::memory_order_relaxed);
             }
 
             // Task has finished, so increment count of available threads.
@@ -230,4 +223,8 @@ bool ThreadPool::post(FUNCTION_T pFun, void *pParam)
 size_t ThreadPool::task_count()
 {
     return ((thread_pool_if*)priv)->task_count();
+}
+size_t ThreadPool::working_count()
+{
+    return ((thread_pool_if*)priv)->working_count();
 }

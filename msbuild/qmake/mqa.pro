@@ -4,8 +4,6 @@ TARGET = mqa
 TEMPLATE = lib
 CONFIG += sharedlib
 
-DEFINES += MQA_EXPORTS
-
 #------------- arch(x64/x86), buildmode(debug/release) -----------
 ARCH=x64
 
@@ -21,30 +19,34 @@ linux-g++-64:                           ARCH=x64
 CONFIG(debug, debug|release) :          BUILDMODE=debug
 CONFIG(release, debug|release) :        BUILDMODE=release
 
-#----------------- use libaries ---------------------
+#----------------- Flags ---------------------
+DEFINES += MQA_EXPORTS
+DEFINES += BOOST_ALL_DYN_LINK
+
+#----------------- use libraries ---------------------
+
 # DESTDIR
 DESTDIR = $$PWD/../../lib/$$ARCH/$$BUILDMODE
 
 win32 {
-
-    # libary boost path
-    BOOSTDIR = D:/onprogram/clib/boost
-
+#    QMAKE_CXXFLAGS_RELEASE += /GS-
+    # library boost path
+    !BOOSTDIR:    BOOSTDIR = D:\onprogram\clib\boost
     LIBS += -lws2_32
-
 } else { #linux -------------------
-
-    # libary boost path
-    BOOSTDIR = /home/jiezhang/test/boost/boost-gcc-shared
-
+    # library boost path
+    !BOOSTDIR:    BOOSTDIR = /home/jiezhang/test/boost/boost-gcc-shared
 }  # linux
 
-# libary boost
+# library boost
 LIBS += -L$$BOOSTDIR/lib/$$ARCH/$$BUILDMODE
 INCLUDEPATH += $$BOOSTDIR/include
 
+# library AnalyzerCommon
+!ANALYZERCOMMONDIR: ANALYZERCOMMONDIR = ../../AnalyzerCommon
+INCLUDEPATH += $$ANALYZERCOMMONDIR
+
 INCLUDEPATH += ../../include
-INCLUDEPATH += ../../AnalyzerCommon
 
 
 SOURCES += \
