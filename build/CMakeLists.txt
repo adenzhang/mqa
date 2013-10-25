@@ -31,14 +31,14 @@ set(Boost_USE_STATIC_RUNTIME OFF)
 if( $ENV{BOOST_DIR} STREQUAL "")
 	find_package( Boost REQUIRED ${BOOST_LIBS} )
 	if(Boost_FOUND)
-		include_directories(${Boost_INCLUDE_DIRS})
+		set(INCLLUDES ${INCLUDES} ${Boost_INCLUDE_DIRS})
 		set(LIBS ${LIBS} ${Boost_LIBRARIES})
 	else()
 		message("Error! No proper boost libraries found")
 	endif()
 else()
 	message("Found BOOST_DIR env: $ENV{BOOST_DIR}" )
-	include_directories($ENV{BOOST_DIR}/include)
+	set(INCLUDES ${INCLUDES} $ENV{BOOST_DIR}/include)
 	set(LIBPATHS ${LIBPATHS} $ENV{BOOST_DIR}/lib/${ARCH}/${BUILDTYPE})
 endif()
 
@@ -49,12 +49,15 @@ message("- link dirs: ${LIBPATHS}")
 
 # AnalyzerCommon
 SET(AnalyzerCommon_DIR
-	${CMAKE_CURRENT_SOURCE_DIR}../AnalyzerCommon CACHE
+	${CMAKE_CURRENT_SOURCE_DIR}/../AnalyzerCommon CACHE
 	PATH "AnalyzerCommon path" FORCE)
-include_directories(${AnalyzerCommon_DIR})
+set(INCLUDES ${INCLUDES} ${AnalyzerCommon_DIR})
 
 #----------------------------------
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
+set(INCLUDES ${INCLUDES} ${CMAKE_CURRENT_SOURCE_DIR}/../include)
+
+message("- INCLUDES: ${INCLUDES}")
+include_directories(${INCLUDES})
 
 file(GLOB SRC
 #    "${CMAKE_CURRENT_SOURCE_DIR}/../*.h"

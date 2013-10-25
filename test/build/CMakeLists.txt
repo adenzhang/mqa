@@ -86,9 +86,9 @@ add_executable( mqatest ${SRC} )
 target_link_libraries(mqatest mqa ${LIBS})
 
 if( WIN32 )
-	set(OUTPUT_DIR ${PROJECT_SOURCE_DIR}/../lib/${ARCH})
+	set(OUTPUT_DIR ${PROJECT_SOURCE_DIR}/../bin/${ARCH})
 else()
-	set(OUTPUT_DIR ${PROJECT_SOURCE_DIR}/../lib/${ARCH}/${BUILDTYPE})
+	set(OUTPUT_DIR ${PROJECT_SOURCE_DIR}/../bin/${ARCH}/${BUILDTYPE})
 endif()
 
 set_target_properties(mqatest PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})

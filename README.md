@@ -26,4 +26,4 @@ date: 2013-10-25
 	- Calculate MOS, R-Factor, one-way delay, jitter for RTPCODEC_PCMU, RTPCODEC_PCMA.
 	- Parse frame by StatsFrameParser.
 	- Tested by mqatest.
-	- Port to linux and use CMake to build
+	- Port to linux and use CMake to build.
