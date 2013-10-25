@@ -55,10 +55,16 @@ if( WIN32 )
 endif()
 
 # AnalyzerCommon
-SET(AnalyzerCommon_DIR
-	${CMAKE_CURRENT_SOURCE_DIR}/../../AnalyzerCommon CACHE
-	PATH "AnalyzerCommon path" FORCE)
-include_directories(${AnalyzerCommon_DIR})
+if( WIN32 ) 
+	include_directories(${PROJECT_SOURCE_DIR}/../../../../../../AnalyzerCommon/include )
+else()
+	include_directories(${PROJECT_SOURCE_DIR}/../../../../../AnalyzerCommon/include )
+endif()
+#SET(AnalyzerCommon_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../AnalyzerCommon CACHE PATH "AnalyzerCommon path" FORCE)
+if( NOT $ENV{AnalyzerCommon_DIR} STREQUAL "")
+	message("- include AnalyzerCommon_DIR: ${AnalyzerCommon_DIR}")
+	include_directories(${AnalyzerCommon_DIR})
+endif()
 
 set(mqa_DIR "../.." CACHE STRING "Set mqa library path containing /include and /lib" FORCE)
 

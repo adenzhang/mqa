@@ -43,7 +43,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="src;..\src;..\include;..\AnalyzerCommon;&quot;$(BOOST_DIR)\include&quot;"
+				AdditionalIncludeDirectories="src;..\src;..\include;../../../../../AnalyzerCommon/include;..\AnalyzerCommon;..\..\..\internal_release\include;&quot;$(BOOST_DIR)\include&quot;"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;BOOST_ALL_DYN_LINK"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -66,7 +66,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="ws2_32.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="&quot;$(BOOST_DIR)\lib\x86\$(ConfigurationName)&quot;;&quot;$(ConfigurationName)&quot;"
+				AdditionalLibraryDirectories="..\..\..\internal_release\lib;&quot;$(BOOST_DIR)\lib\x86\$(ConfigurationName)&quot;;&quot;$(ConfigurationName)&quot;"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="1"
@@ -122,7 +122,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="src;..\src;..\include;..\AnalyzerCommon;&quot;$(BOOST_DIR)\include&quot;"
+				AdditionalIncludeDirectories="src;..\src;..\include;../../../../../AnalyzerCommon/include;..\AnalyzerCommon;..\..\..\internal_release\include;&quot;$(BOOST_DIR)\include&quot;"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;BOOST_ALL_DYN_LINK"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -145,7 +145,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="ws2_32.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="&quot;$(BOOST_DIR)\lib\$(PlatformName)\$(ConfigurationName)&quot;;&quot;$(PlatformName)\$(ConfigurationName)&quot;"
+				AdditionalLibraryDirectories="..\..\..\internal_release\lib;&quot;$(BOOST_DIR)\lib\$(PlatformName)\$(ConfigurationName)&quot;;&quot;$(PlatformName)\$(ConfigurationName)&quot;"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="17"
@@ -200,7 +200,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="src;..\src;..\include;..\AnalyzerCommon;&quot;$(BOOST_DIR)\include&quot;"
+				AdditionalIncludeDirectories="src;..\src;..\include;../../../../../AnalyzerCommon/include;..\AnalyzerCommon;..\..\..\internal_release\include;&quot;$(BOOST_DIR)\include&quot;"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;BOOST_ALL_DYN_LINK"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="0"
@@ -221,7 +221,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="ws2_32.lib"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="&quot;$(BOOST_DIR)\lib\x86\$(ConfigurationName)&quot;;&quot;$(ConfigurationName)&quot;"
+				AdditionalLibraryDirectories="..\..\..\internal_release\lib;&quot;$(BOOST_DIR)\lib\x86\$(ConfigurationName)&quot;;&quot;$(ConfigurationName)&quot;"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				OptimizeReferences="2"
@@ -279,7 +279,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="src;..\src;..\include;..\AnalyzerCommon;&quot;$(BOOST_DIR)\include&quot;"
+				AdditionalIncludeDirectories="src;..\src;..\include;../../../../../AnalyzerCommon/include;..\AnalyzerCommon;..\..\..\internal_release\include;&quot;$(BOOST_DIR)\include&quot;"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;BOOST_ALL_DYN_LINK"
 				RuntimeLibrary="2"
 				BufferSecurityCheck="true"
@@ -301,7 +301,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="ws2_32.lib"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="&quot;$(BOOST_DIR)\lib\$(PlatformName)\$(ConfigurationName)&quot;;&quot;$(PlatformName)\$(ConfigurationName)&quot;"
+				AdditionalLibraryDirectories="..\..\..\internal_release\lib;&quot;$(BOOST_DIR)\lib\$(PlatformName)\$(ConfigurationName)&quot;;&quot;$(PlatformName)\$(ConfigurationName)&quot;"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				OptimizeReferences="2"

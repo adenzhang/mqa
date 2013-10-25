@@ -48,10 +48,16 @@ message("- link libs: ${LIBS}")
 message("- link dirs: ${LIBPATHS}")
 
 # AnalyzerCommon
-SET(AnalyzerCommon_DIR
-	${CMAKE_CURRENT_SOURCE_DIR}/../AnalyzerCommon CACHE
-	PATH "AnalyzerCommon path" FORCE)
-set(INCLUDES ${INCLUDES} ${AnalyzerCommon_DIR})
+if( WIN32 ) 
+	include_directories(${PROJECT_SOURCE_DIR}/../../../../../AnalyzerCommon/include )
+else()
+	include_directories(${PROJECT_SOURCE_DIR}/../../../../../AnalyzerCommon/include )
+endif()
+#SET(AnalyzerCommon_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../AnalyzerCommon CACHE PATH "AnalyzerCommon path" FORCE)
+if( NOT $ENV{AnalyzerCommon_DIR} STREQUAL "")
+	message("- include AnalyzerCommon_DIR: ${AnalyzerCommon_DIR}")
+	include_directories(${AnalyzerCommon_DIR})
+endif()
 
 #----------------------------------
 set(INCLUDES ${INCLUDES} ${CMAKE_CURRENT_SOURCE_DIR}/../include)
