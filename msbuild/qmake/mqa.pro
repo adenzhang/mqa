@@ -31,20 +31,20 @@ DESTDIR = $$PWD/../../lib/$$ARCH/$$BUILDMODE
 win32 {
 #    QMAKE_CXXFLAGS_RELEASE += /GS-
     # library boost path
-    !BOOSTDIR:    BOOSTDIR = D:\onprogram\clib\boost
+    !BOOST_DIR:    BOOST_DIR = D:\onprogram\clib\boost
     LIBS += -lws2_32
 } else { #linux -------------------
     # library boost path
-    !BOOSTDIR:    BOOSTDIR = /home/jiezhang/test/boost/boost-gcc-shared
+    !BOOST_DIR:    BOOST_DIR = /home/jiezhang/test/boost/boost-gcc-shared
 }  # linux
 
 # library boost
-LIBS += -L$$BOOSTDIR/lib/$$ARCH/$$BUILDMODE
-INCLUDEPATH += $$BOOSTDIR/include
+LIBS += -L$$BOOST_DIR/lib/$$ARCH/$$BUILDMODE
+INCLUDEPATH += $$BOOST_DIR/include
 
 # library AnalyzerCommon
-!ANALYZERCOMMONDIR: ANALYZERCOMMONDIR = ../../AnalyzerCommon
-INCLUDEPATH += $$ANALYZERCOMMONDIR
+!ANALYZERCOMMON_DIR: ANALYZERCOMMON_DIR = ../../AnalyzerCommon
+INCLUDEPATH += $$ANALYZERCOMMON_DIR
 
 INCLUDEPATH += ../../include
 

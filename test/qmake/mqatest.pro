@@ -35,19 +35,19 @@ LIBS += -L$$MQA_LIBDIR -lmqa
 win32 {
 #    QMAKE_CXXFLAGS_RELEASE += /GS-
     # libary boost path
-    !BOOSTDIR:    BOOSTDIR = D:\onprogram\clib\boost
+    !BOOST_DIR:    BOOST_DIR = D:\onprogram\clib\boost
 
     LIBS += -lws2_32
 }else { #--- linux -------------------
     # libary boost path
-    !BOOSTDIR:    BOOSTDIR = /home/jiezhang/test/boost/boost-gcc-shared
+    !BOOST_DIR:    BOOST_DIR = /home/jiezhang/test/boost/boost-gcc-shared
 
     LIBS += -lboost_system -lboost_program_options -lboost_thread
 }  # linux
 
 # libary boost
-LIBS += -L$$BOOSTDIR/lib/$$ARCH/$$BUILDMODE
-INCLUDEPATH += $$BOOSTDIR/include
+LIBS += -L$$BOOST_DIR/lib/$$ARCH/$$BUILDMODE
+INCLUDEPATH += $$BOOST_DIR/include
 
 #-------------- copy files ----------------
 
@@ -70,9 +70,11 @@ win32 {
 }
 
 #---------------------------------------------
+# library AnalyzerCommon
+!ANALYZERCOMMON_DIR: ANALYZERCOMMON_DIR = ../../AnalyzerCommon
+INCLUDEPATH += $$ANALYZERCOMMON_DIR
 
 INCLUDEPATH += ../../include
-INCLUDEPATH += ../../AnalyzerCommon
 
 
 SOURCES += \

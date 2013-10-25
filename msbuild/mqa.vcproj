@@ -21,7 +21,7 @@
 		<Configuration
 			Name="Debug|Win32"
 			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
+			IntermediateDirectory="temp\$(ConfigurationName)"
 			ConfigurationType="2"
 			CharacterSet="1"
 			>
@@ -43,8 +43,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\src;..\include;..\AnalyzerCommon"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;MQA_EXPORTS"
+				AdditionalIncludeDirectories="..\src;..\include;..\AnalyzerCommon;&quot;$(BOOST_DIR)\include&quot;"
+				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;MQA_EXPORTS;BOOST_ALL_DYN_LINK"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -65,6 +65,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				LinkIncremental="2"
+				AdditionalLibraryDirectories="&quot;$(BOOST_DIR)\lib\x86\$(ConfigurationName)&quot;"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				TargetMachine="1"
@@ -97,7 +98,7 @@
 		<Configuration
 			Name="Debug|x64"
 			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
-			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
+			IntermediateDirectory="temp\$(PlatformName)\$(ConfigurationName)"
 			ConfigurationType="2"
 			CharacterSet="2"
 			>
@@ -120,8 +121,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\src;..\include;..\AnalyzerCommon;&quot;$(BOOSTDIR)\include&quot;"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;MQA_EXPORTS"
+				AdditionalIncludeDirectories="..\src;..\include;..\AnalyzerCommon;&quot;$(BOOST_DIR)\include&quot;"
+				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;MQA_EXPORTS;BOOST_ALL_DYN_LINK"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -142,7 +143,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="&quot;$(BOOSTDIR)\lib\$(PlatformName)\$(ConfigurationName)&quot;"
+				AdditionalLibraryDirectories="&quot;$(BOOST_DIR)\lib\$(PlatformName)\$(ConfigurationName)&quot;"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				TargetMachine="17"
@@ -175,7 +176,7 @@
 		<Configuration
 			Name="Release|Win32"
 			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
+			IntermediateDirectory="temp\$(ConfigurationName)"
 			ConfigurationType="2"
 			CharacterSet="2"
 			WholeProgramOptimization="1"
@@ -197,8 +198,8 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="..\src;..\include;..\AnalyzerCommon"
-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;MQA_EXPORTS"
+				AdditionalIncludeDirectories="..\src;..\include;..\AnalyzerCommon;&quot;$(BOOST_DIR)\include&quot;"
+				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;MQA_EXPORTS;BOOST_ALL_DYN_LINK"
 				RuntimeLibrary="2"
 				BufferSecurityCheck="false"
 				UsePrecompiledHeader="0"
@@ -218,6 +219,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				LinkIncremental="1"
+				AdditionalLibraryDirectories="&quot;$(BOOST_DIR)\lib\x86\$(ConfigurationName)&quot;"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				OptimizeReferences="2"
@@ -252,7 +254,7 @@
 		<Configuration
 			Name="Release|x64"
 			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
-			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
+			IntermediateDirectory="temp\$(PlatformName)\$(ConfigurationName)"
 			ConfigurationType="2"
 			CharacterSet="2"
 			WholeProgramOptimization="1"
@@ -275,7 +277,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="..\src;..\include;..\AnalyzerCommon;&quot;$(BOOSTDIR)\include&quot;"
+				AdditionalIncludeDirectories="..\src;..\include;..\AnalyzerCommon;&quot;$(BOOST_DIR)\include&quot;"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;MQA_EXPORTS;BOOST_ALL_DYN_LINK"
 				RuntimeLibrary="2"
 				BufferSecurityCheck="true"
@@ -296,7 +298,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="&quot;$(BOOSTDIR)\lib\$(PlatformName)\$(ConfigurationName)&quot;;D:\onprogram\clib\boost\lib\x64\release"
+				AdditionalLibraryDirectories="&quot;$(BOOST_DIR)\lib\$(PlatformName)\$(ConfigurationName)&quot;"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				OptimizeReferences="2"
@@ -337,46 +339,6 @@
 			Filter="cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx"
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
-			<File
-				RelativePath=".\mqa.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\stdafx.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						UsePrecompiledHeader="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						UsePrecompiledHeader="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						UsePrecompiledHeader="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						UsePrecompiledHeader="1"
-					/>
-				</FileConfiguration>
-			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"

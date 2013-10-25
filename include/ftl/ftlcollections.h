@@ -2236,8 +2236,6 @@ public:
             return *pair;
         }
         iterator_t& operator++() {
-            FTLASSUME( _ppBins != NULL );
-            FTLASSERT( pos != NULL );
             if( pair == NULL) return *this;
 
             Node* pNode = static_cast< Node* >( pair );
