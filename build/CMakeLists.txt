@@ -20,22 +20,43 @@ else()
 endif()
 
 message("*** ${ARCH}/${BUILDTYPE} ***")
-  
+
+# AnalyzerCommon
+set(AnalyzerCommon_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../AnalyzerCommon CACHE PATH "AnalyzerCommon path" FORCE)
+set(INCLUDES ${INCLUDES} ${AnalyzerCommon_DIR}/include)
+set(INCLUDES ${INCLUDES} ../AnalyzerCommon)
+
 # boost libraries
 set (BOOST_LIBS system thread)
 
+if( WIN32 )
+	SET(Boost_DIR  ${PROJECT_SOURCE_DIR}/../../../internal_release/include) # include boost
+else()
+	SET(Boost_DIR  ${PROJECT_SOURCE_DIR}/../../../3rdparty/boost/include)
+endif()
+set(INCLUDES ${INCLUDES} ${Boost_DIR}/include)
+set(LIBPATHS ${LIBPATHS} ${Boost_DIR}/lib)
+set(LIBPATHS ${LIBPATHS} ${Boost_DIR}/lib/${ARCH}/${BUILDTYPE})
+if( NOT WIN32 )
+	foreach(F ${BOOST_LIBS})
+		set(LIBS ${LIBS} boost_${F})
+	endforeach()
+endif()
+
+
+  
 set(Boost_USE_STATIC_LIBS OFF) 
 set(Boost_USE_MULTITHREADED ON)  
 set(Boost_USE_STATIC_RUNTIME OFF) 
 
 if( $ENV{BOOST_DIR} STREQUAL "")
-	find_package( Boost REQUIRED ${BOOST_LIBS} )
-	if(Boost_FOUND)
-		set(INCLLUDES ${INCLUDES} ${Boost_INCLUDE_DIRS})
-		set(LIBS ${LIBS} ${Boost_LIBRARIES})
-	else()
-		message("Error! No proper boost libraries found")
-	endif()
+#	find_package( Boost REQUIRED ${BOOST_LIBS} )
+#	if(Boost_FOUND)
+#		set(INCLUDES ${INCLUDES} ${Boost_INCLUDE_DIRS})
+#		set(LIBS ${LIBS} ${Boost_LIBRARIES})
+#	else()
+#		message("Error! No proper boost libraries found")
+#	endif()
 else()
 	message("Found BOOST_DIR env: $ENV{BOOST_DIR}" )
 	set(INCLUDES ${INCLUDES} $ENV{BOOST_DIR}/include)
@@ -47,17 +68,6 @@ add_definitions( -DBOOST_ALL_DYN_LINK )
 message("- link libs: ${LIBS}")
 message("- link dirs: ${LIBPATHS}")
 
-# AnalyzerCommon
-if( WIN32 ) 
-	include_directories(${PROJECT_SOURCE_DIR}/../../../../../AnalyzerCommon/include )
-else()
-	include_directories(${PROJECT_SOURCE_DIR}/../../../../../AnalyzerCommon/include )
-endif()
-#SET(AnalyzerCommon_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../AnalyzerCommon CACHE PATH "AnalyzerCommon path" FORCE)
-if( NOT $ENV{AnalyzerCommon_DIR} STREQUAL "")
-	message("- include AnalyzerCommon_DIR: ${AnalyzerCommon_DIR}")
-	include_directories(${AnalyzerCommon_DIR})
-endif()
 
 #----------------------------------
 set(INCLUDES ${INCLUDES} ${CMAKE_CURRENT_SOURCE_DIR}/../include)
