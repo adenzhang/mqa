@@ -95,11 +95,14 @@ add_library( mqa SHARED ${SRC} )
 
 target_link_libraries(mqa ${LIBS})
 
-if( WIN32 )
-	set(OUTPUT_DIR ${PROJECT_BINARY_DIR}/lib/${ARCH})
-else()
-	set(OUTPUT_DIR ${PROJECT_BINARY_DIR}/lib/${ARCH}/${BUILDTYPE})
+if( NOT OUTPUT_DIR )
+    if( WIN32 )
+            set(OUTPUT_DIR ${PROJECT_BINARY_DIR}/lib/${ARCH})
+    else()
+            set(OUTPUT_DIR ${PROJECT_BINARY_DIR}/lib/${ARCH}/${BUILDTYPE})
+    endif()
 endif()
+message("* OUTPUT_DIR: ${OUTPUT_DIR}")
 
 set_target_properties(mqa PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 set_target_properties(mqa PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR})

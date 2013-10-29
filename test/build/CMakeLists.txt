@@ -76,7 +76,7 @@ if( WIN32 )
 	set(LIBS ${LIBS} ws2_32)
 endif()
 
-set(mqa_DIR "../.." CACHE STRING "Set mqa library path containing /include and /lib" FORCE)
+set(mqa_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
 set(LIBPATHS ${LIBPATHS} ${mqa_DIR}/lib/${ARCH}/${BUILDTYPE})
 set(INCLUDES ${INCLUDES} ${mqa_DIR}/include)
@@ -102,10 +102,13 @@ add_executable( mqatest ${SRC} )
 
 target_link_libraries(mqatest mqa ${LIBS})
 
-if( WIN32 )
-	set(OUTPUT_DIR ${PROJECT_SOURCE_DIR}/../bin/${ARCH})
-else()
-	set(OUTPUT_DIR ${PROJECT_SOURCE_DIR}/../bin/${ARCH}/${BUILDTYPE})
+if( NOT OUTPUT_DIR )
+    if( WIN32 )
+            set(OUTPUT_DIR ${PROJECT_SOURCE_DIR}/../bin/${ARCH})
+    else()
+            set(OUTPUT_DIR ${PROJECT_SOURCE_DIR}/../bin/${ARCH}/${BUILDTYPE})
+    endif()
 endif()
+message("* OUTPUT_DIR: ${OUTPUT_DIR}")
 
 set_target_properties(mqatest PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
