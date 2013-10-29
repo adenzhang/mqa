@@ -10,7 +10,7 @@ else()
 endif()
 
 if( NOT CMAKE_BUILD_TYPE )
-	set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build, options are: Release Debug" FORCE)
+	set(CMAKE_BUILD_TYPE Release)
 endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL Debug)
@@ -22,18 +22,27 @@ endif()
 message("*** ${ARCH}/${BUILDTYPE} ***")
 
 # AnalyzerCommon
-set(AnalyzerCommon_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../AnalyzerCommon CACHE PATH "AnalyzerCommon path" FORCE)
-set(INCLUDES ${INCLUDES} ${AnalyzerCommon_DIR}/include)
-set(INCLUDES ${INCLUDES} ../AnalyzerCommon)
+if( NOT AnalyzerCommon_DIR )
+    if( WIN32 )
+        set(AnalyzerCommon_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../AnalyzerCommon/include)
+    else()
+        set(AnalyzerCommon_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../3rdparty/AnalyzerCommon/include/AnalyzerCommon)
+    endif()
+endif()
+message("* AnalyzerCommon_DIR: ${AnalyzerCommon_DIR}")
+set(INCLUDES ${INCLUDES} ${AnalyzerCommon_DIR})
 
 # boost libraries
 set (BOOST_LIBS system thread)
 
-if( WIN32 )
-	SET(Boost_DIR  ${PROJECT_SOURCE_DIR}/../../../internal_release/include) # include boost
-else()
-	SET(Boost_DIR  ${PROJECT_SOURCE_DIR}/../../../3rdparty/boost/include)
+if( NOT Boost_DIR )
+    if( WIN32 )
+    	SET(Boost_DIR  ${CMAKE_CURRENT_SOURCE_DIR}}/../../../internal_release) # include boost
+    else()
+    	SET(Boost_DIR  ${CMAKE_CURRENT_SOURCE_DIR}}/../../../3rdparty/boost)
+    endif()
 endif()
+message("* Boost_DIR: ${Boost_DIR}")
 set(INCLUDES ${INCLUDES} ${Boost_DIR}/include)
 set(LIBPATHS ${LIBPATHS} ${Boost_DIR}/lib)
 set(LIBPATHS ${LIBPATHS} ${Boost_DIR}/lib/${ARCH}/${BUILDTYPE})
@@ -42,8 +51,6 @@ if( NOT WIN32 )
 		set(LIBS ${LIBS} boost_${F})
 	endforeach()
 endif()
-
-
   
 set(Boost_USE_STATIC_LIBS OFF) 
 set(Boost_USE_MULTITHREADED ON)  
@@ -89,11 +96,12 @@ add_library( mqa SHARED ${SRC} )
 target_link_libraries(mqa ${LIBS})
 
 if( WIN32 )
-	set(OUTPUT_DIR ${PROJECT_SOURCE_DIR}/../lib/${ARCH})
+	set(OUTPUT_DIR ${PROJECT_BINARY_DIR}/lib/${ARCH})
 else()
-	set(OUTPUT_DIR ${PROJECT_SOURCE_DIR}/../lib/${ARCH}/${BUILDTYPE})
+	set(OUTPUT_DIR ${PROJECT_BINARY_DIR}/lib/${ARCH}/${BUILDTYPE})
 endif()
 
 set_target_properties(mqa PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 set_target_properties(mqa PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 set_target_properties(mqa PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_DIR})
+INSTALL(TARGETS mqa DESTINATION ${CMAKE_INSTALL_PREFIX_MRI}/lib COMPONENT mqa)
