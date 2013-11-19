@@ -6,21 +6,41 @@
 #endif
 
 #include "StatsFrameParser.h"
+#include <string.h>
 
-#include "RtsdSupport.h"
+// VLAN/MPLS FLAGS
+#ifndef RTSD_VLAN_FLAG
+#define RTSD_VLAN_FLAG        0x80000000
+#define RTSD_MPLS_FLAG        0x40000000
+#endif
 
 namespace mqa {
 StatsFrameParser::StatsFrameParser()
+: pData(NULL)
+, bCopyData(false)
+, _allocatedData(false)
+{
+    Reset();
+}
+StatsFrameParser::StatsFrameParser(UINT16 copyAppLayerSize)
+: pData(NULL)
+, bCopyData(true)
+, _allocatedData(false)
+, _copyAppLayerSize(copyAppLayerSize)
 {
     Reset();
 }
 
 StatsFrameParser::~StatsFrameParser()
 {
+    Reset();
 }
 
 void StatsFrameParser::Reset()
 {
+    if( _allocatedData && pData ){
+        delete [] pData;
+    }
     pData = NULL;
     nDataLength = 0;
     nLimPort = 0;
@@ -52,6 +72,11 @@ bool StatsFrameParser::ParseVLANMPLSIds(UINT16& nOffset)
                 }
                 nOffset += 4;
                 break;
+            }
+        case ETHER_PROTO_PPPOE_SWAP:
+            {
+                nOffset += 10;
+                return true;
             }
         case ETHER_PROTO_MPLS_UNICAST_SWAP:
         case ETHER_PROTO_MPLS_MULTICAST_SWAP:
@@ -315,6 +340,19 @@ bool StatsFrameParser::ParseTrans(UINT16& nOffset, bool bUpper)
             {
                 if (!ParseGTP(nOffset))
                     return false;
+            }
+            else if(!bUpper
+                && (Info.TransInfo.nSrcPort == GPRS_TUNNELING_PORT
+                || Info.TransInfo.nDestPort == GPRS_TUNNELING_PORT)) {
+                    // GPRS tunneling
+                    Info.TransInfo.nTransHeaderLength = 8;
+                    nOffset += 8;  //
+                    if (!ParseGTP(nOffset))
+                        return false;
+                    //if(!ParseIp(nOffset, true))
+                    //    return false;
+                    //if(!ParseTrans(nOffset, true))
+                    //    return false;
             }else{
                 Info.TransInfo.nTransHeaderLength = 8;
                 nOffset += Info.TransInfo.nTransHeaderLength; // to payload
@@ -448,36 +486,38 @@ bool StatsFrameParser::ParseLower(UINT16& nOffset)
     return true;
 }
 
-bool StatsFrameParser::ParseFrame(const UINT8 *pFrame)
-{
-    if (!pFrame)
-        return false;
+//bool StatsFrameParser::ParseFrame(const UINT8 *pFrame)
+//{
+//    if (!pFrame)
+//        return false;
 
-    Reset();
+//    Reset();
 
-    pData = pFrame + (UINT8) sizeof(RtsdBufFmtFrameHeader);
-    RtsdBufFmtFrameHeader *pHeader = (RtsdBufFmtFrameHeader *)pFrame;
-    nDataLength = pHeader->storedLength; 
+//    pData = pFrame + (UINT8) sizeof(RtsdBufFmtFrameHeader);
+//    RtsdBufFmtFrameHeader *pHeader = (RtsdBufFmtFrameHeader *)pFrame;
+//    nDataLength = pHeader->storedLength;
 
-    // Get LIM port number
-    if (pHeader->limInfoLength == 3 && !pHeader->isPPFrame)
-        nLimPort = pHeader->limInfo[0] & 0x1F;
+//    // Get LIM port number
+//    if (pHeader->limInfoLength == 3 && !pHeader->isPPFrame)
+//        nLimPort = pHeader->limInfo[0] & 0x1F;
 
-    UINT16 nOffset = 12;   // skip Ethernet addresses
-    nAppLayerOffset = 0;
+//    UINT16 nOffset = 12;   // skip Ethernet addresses
+//    nAppLayerOffset = 0;
 
-    // Get VLAN/MPLS Ids
-    if (!ParseVLANMPLSIds(nOffset))
-        return false;
+//    // Get VLAN/MPLS Ids
+//    if (!ParseVLANMPLSIds(nOffset))
+//        return false;
 
-    if (!ParseLower(nOffset))
-        return false;
+//    if (!ParseLower(nOffset))
+//        return false;
 
-    nAppLayerOffset = nOffset;
-    return true;
-}
+//    nAppLayerOffset = nOffset;
+//    return true;
+//}
 bool StatsFrameParser::ParseFrame(const UINT8* pFrame, UINT16 len, UINT8 limPort) // ethernet header
 {
+    //Reset();
+
     pData = pFrame;
     nDataLength = len;
     nLimPort = limPort;
@@ -493,6 +533,11 @@ bool StatsFrameParser::ParseFrame(const UINT8* pFrame, UINT16 len, UINT8 limPort
         return false;
 
     nAppLayerOffset = nOffset;
+    if(bCopyData && nOffset) {
+        pData = new UINT8[nOffset+_copyAppLayerSize];
+        memcpy((void*)pData, pFrame, nOffset+_copyAppLayerSize);
+        _allocatedData = true;
+    }
     return true;
 }
 } // namespace mqa

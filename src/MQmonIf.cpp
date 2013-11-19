@@ -56,17 +56,19 @@ namespace mqa {
             return rtpStream->IsValidStream();
         }
         virtual bool DetectStream(){
-            return rtpStream->DetectStream();
+            bool ret = rtpStream->DetectStream();
+            m_codecType = rtpStream->GetCodecType();
+            return ret;
         }
         virtual bool GetMetrics(CMQmonMetrics& Metrics)
         {
             if(!rtpStream->IsValidStream()) return false;
             ftl::timenano delay = rtpStream->CalculateOneWayDelay();
             Metrics.nDelay = delay.as<int>(); 
-            Metrics.nDelay /= 1000; // to milli-sec
+            Metrics.nDelay /= 1000000; // to milli-sec
             UINT32 nPackets;
             Metrics.Jitter = rtpStream->CalculateJitter().as<float>();
-            Metrics.Jitter /= 1000; // to milli-sec
+            Metrics.Jitter /= 1000000; // to milli-sec
             Metrics.fLossRate = rtpStream->CalculatePacketLossRate(nPackets);
             Metrics.nPackets = nPackets;
             float rfactor, mos;
@@ -74,6 +76,12 @@ namespace mqa {
                 return false;
             Metrics.RFactor = rfactor;
             Metrics.MOS = mos;
+            return true;
+        }
+
+        virtual bool SetCodecType(INT16 codec)  {
+            rtpStream->SetCodecType(codec);
+            m_codecType = codec;
             return true;
         }
 

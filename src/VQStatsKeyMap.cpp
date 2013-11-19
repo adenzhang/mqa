@@ -70,9 +70,9 @@ namespace mqa {
             );
     }
 
-    VQStatsTunnelEntryKey VQStatsKeyMap::CreateTunnelEntryKey(const StatsFrameParser& Parser)
+    VQStatsTunnelLowerAddress VQStatsKeyMap::CreateTunnelEntryKey(const StatsFrameParser& Parser)
     {
-        return VQStatsTunnelEntryKey(
+        return VQStatsTunnelLowerAddress(
             Parser.IsIpv4(false),
             Parser.SrcIp(false),
             Parser.DestIp(false),

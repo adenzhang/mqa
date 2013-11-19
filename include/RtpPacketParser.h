@@ -2,11 +2,13 @@
 #define MQA_RTPPACKET_H_
 
 #include "PacketParser.h"
+#include "mqa_shared.h"
 
 namespace mqa {
-    struct RtpPacketParser 
+    struct MQA_SHARED RtpPacketParser 
         : public PacketParser
     {
+        enum {MAX_SEQ_NUM=(1<<(sizeof(UINT16)*8))-1, MIN_SEQ_NUM=0};
         RtpPacketParser(const char *buf=NULL, int len=0, PacketParser *lower=0)
             : PacketParser(buf, len, kRTP_PACKET, lower) 
             , payloadType(0), sequenceNum(0), timestamp(0), ssrc(0)

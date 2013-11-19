@@ -1,7 +1,6 @@
 #include "RtpStream.h"
 #include <list>
 #include <algorithm>
-#include "CalculateRFactor.h"
 
 #define SetMinMax(nSample, nMin, nMax) \
     if ((nSample < nMin)) nMin = nSample; \
@@ -17,6 +16,8 @@ namespace mqa {
         {}
         ftl::timenano capTime; // capture time;
     };
+    typedef std::list<RtpPacketInfo>    PacketList;
+
     struct RtpPacketSorter
     {
         bool operator()(RtpPacketInfo& a, RtpPacketInfo& b) {
@@ -44,9 +45,12 @@ namespace mqa {
         RTPStreamType streamType;
 
         // following are used to detect stream
-        const int NLASTPACKETS;
-        typedef std::list<RtpPacketInfo>    PacketList;
-        PacketList                    lastPackets;  // save the last several packets.
+        const int     NLASTPACKETS;
+        PacketList    lastPackets;  // save the last several packets.
+
+        // noise packets 
+        int           nNoisePackets;
+        enum {MAX_NOISE_PACKETS = 2};
 
         RtpStreamImpl() 
             : bValidStream(false)
@@ -56,6 +60,7 @@ namespace mqa {
             , currJitter(0), prevJitter(0)
             , currMOS(0), prevMOS(0)
             , nMinSeqNum(0), nMaxSeqNum(0)
+            , nNoisePackets(0)
         {
         }
 
@@ -65,19 +70,59 @@ namespace mqa {
                 lastPackets.pop_front();
             }
         }
+        // only check some fields to verify RTP packet alive.
+        // for detailed check, should use DetectStream().
+        static bool fastCheckRTP(const RtpPacketParser& prev, const RtpPacketParser& curr)
+        {
+            return prev.ver == curr.ver
+            && prev.nHeaderLength == curr.nHeaderLength
+            && prev.nCC == curr.nCC
+            && prev.ssrc == curr.ssrc
+            //&& prev.payloadType == curr.payloadType  // payload type may dynamicly change
+            ;
+        }
+        void invalidateStream() {
+            nMinSeqNum = RtpPacketParser::MAX_SEQ_NUM;
+            nMaxSeqNum = RtpPacketParser::MIN_SEQ_NUM;
+            //lastPackets.pop_front();  // only drop one packet. other packets may be valid RTP packets.
+            bValidStream= false;
+            nNoisePackets = 0;
+        }
+        // return true if it's noise packet and discard the packet;
+        // return false indicates the stream has stopped, reinitialize stream.
+        bool handleNoisePacket(RtpPacketParser& packet)
+        {
+            if( bValidStream ){  // only check nose packet when valid RTP stream.
+                if( ++nNoisePackets > MAX_NOISE_PACKETS ) {
+                    // the stream stopped, reinitialize.
+                    invalidateStream();
+                    return false;
+                }else{
+                    // it's noise packet, drop it.
+                    return true;
+                }
+            }else{  // otherwise, it is still invalid RTP stream.
+                return false;
+            }
+        }
         bool IndicateRtpPacket(const ftl::timenano& captureTime, const RtpPacketParser& apacket)
         {
             RtpPacketParser packet(apacket);
             if( !packet.IsValid() && !packet.Parse()) {
-                bValidStream = false;
-                return false;
+                return handleNoisePacket(packet);
             }
+            if( lastPackets.size()>0 ) {
+                if( bValidStream && !fastCheckRTP(*lastPackets.begin(), packet) ) {
+                    // only check nose packet when valid RTP stream.
+                    return handleNoisePacket(packet);
+                }
+            }
+            nNoisePackets = 0;
             pushPacket(RtpPacketInfo(packet, captureTime));
 
             currRx = captureTime;
             currTx = packet.timestamp;
 
-            codecType = (RTPCodec) packet.payloadType;
             packet.GetPayload(&lenPayload);
             SetMinMax(packet.sequenceNum, nMinSeqNum, nMaxSeqNum);
 
@@ -89,37 +134,47 @@ namespace mqa {
             return bValidStream;
         }
         bool DetectStream() {
-            bValidStream = false;
-            if( lastPackets.size() < NLASTPACKETS ) return false;
+            bValidStream = true;
+            if( lastPackets.size() < NLASTPACKETS ) {
+                invalidateStream();
+                return false;
+            }
 
             PacketList::iterator it = lastPackets.begin();
             PacketList::iterator prev = it++;
             nMinSeqNum = prev->sequenceNum;
             nMaxSeqNum = prev->sequenceNum;
             for(; it!=lastPackets.end(); ++it, ++prev) {
-                if( it->packetType != prev->packetType 
-                    || it->ssrc != prev->ssrc )
-                    return false;
+                if( !fastCheckRTP(*prev, *it) ) {
+                    bValidStream = false;
+                    break;
+                }
                 INT64 dSeq = it->sequenceNum - prev->sequenceNum;
                 INT64 dTime = it->timestamp - prev->timestamp;
-                if( (dSeq ^ dTime) < 0 )  // different sign
-                    return false;
+                if( (dSeq ^ dTime) < 0 ) { // different sign
+                    bValidStream = false;
+                    break;
+                }
                 SetMinMax(it->sequenceNum, nMinSeqNum, nMaxSeqNum);
             }
-            if( nMinSeqNum + NLASTPACKETS - 2 > nMaxSeqNum)  // tolerance 1
+            if(  !bValidStream || nMinSeqNum + NLASTPACKETS - 2 > nMaxSeqNum)  {// tolerance 1
+                invalidateStream();
                 return false;
+            }
 
             // update info
             bValidStream = true;
+            prev--;
             {
+                codecType = (RTPCodec)prev->payloadType;
                 nCodecFrameSize = RTPCodec2CodecFrameSize(codecType, &lenPayload);
                 RTPCodec2RTPMediaType(codecType, mediaType, streamType);
                 nClockRate = RTPCodec2ClockRate(codecType);
                 nRecvPackts = NLASTPACKETS;
+
+                prevTx = prev->timestamp;
+                prevRx = prev->capTime;
             }
-            prev--;
-            prevTx = prev->timestamp;
-            prevRx = prev->capTime;
             return true;
         }
         float CalculatePacketLossRate(UINT32& nPackets)
@@ -159,10 +214,22 @@ namespace mqa {
             UINT32 nPackts;
             double MOS, RFactor;
             bool ret = CalculateRFactor(codecType, nCodecFrameSize, currJitter.as<float>()/1000000
-                , currDelay.as<float>()/100000, 0.0, CalculatePacketLossRate(nPackts), &RFactor, &MOS);
+                , currDelay.as<float>()/1000000, 0.0, CalculatePacketLossRate(nPackts), &RFactor, &MOS);
             mos = MOS;
             rfactor = RFactor;
             return ret;
+        }
+        bool SetCodecType(INT16 codec)
+        {
+            codecType = (RTPCodec)codec;
+            nCodecFrameSize = RTPCodec2CodecFrameSize(codecType, &lenPayload);
+            RTPCodec2RTPMediaType(codecType, mediaType, streamType);
+            nClockRate = RTPCodec2ClockRate(codecType);
+            return true;
+        }
+        virtual INT16 GetCodecType()
+        {
+            return codecType;
         }
     };
 

@@ -28,8 +28,19 @@ namespace mqa {
         RTPTYPE_ICC_RUDP // used for reference, do not display
     } RTPStreamType;
 
+#define DEF_SUBCODEC(codec, num) \
+	codec##_##num = (codec|(num<<RTPCODEC_BITS))
+
+#define DEF_SUBCODECN(codec, name, num) \
+	codec##_##name = (codec|(num<<RTPCODEC_BITS))
+
     typedef enum
     {
+        RTPCODEC_MASK        = 0x00FF,
+        RTPSUBCODEC_MASK     = 0xFF00,
+        RTPCODEC_BITS        = 8,
+        RTPSUBCODEC_BITS     = 8,
+
         //////////////////////////////////////////////////
         // RFC Reserved
         RTPCODEC_PCMU        = 0,
@@ -61,10 +72,17 @@ namespace mqa {
 
         //////////////////////////////////////////////////
         // Standard Codec
-        RTPCODEC_AMR         = 128,
+        RTPCODEC_AMRNB       = 128,
         RTPCODEC_AMRWB       = 129,
         RTPCODEC_EFR         = 130,
         RTPCODEC_EVRC        = 131,
+
+        //----- other dynamic ---
+        RTPCODEC_G726_A      = 132,
+        RTPCODEC_G726_U      = 133,
+        RTPCODEC_G711_PLC    = 134,
+        RTPCODEC_RTAUDIO_NB  = 135,    // {Freq:8K,  BitRate:8.8bps, PackeSize:22bytes, Lookahead:10ms, FrameSize:20ms}
+        RTPCODEC_RTAUDIO_WB  = 136,    // {Freq:16K, BitRate:18bps,  PackeSize:45bytes, Lookahead:10ms, FrameSize:20ms}
 
         //////////////////////////////////////////////////
         // Others
@@ -72,9 +90,43 @@ namespace mqa {
         RTPCODEC_OTHERVIDEO  = 253,
         RTPCODEC_OTHERAV     = 254,
 
+
         //////////////////////////////////////////////////
         // Unspecific
-        RTPCODEC_UNSPECIFIC  = 255
+        RTPCODEC_UNSPECIFIC  = 255,
+
+
+        //---- codec subtypes -------------------
+
+        DEF_SUBCODEC(RTPCODEC_G726_A, 16),
+        DEF_SUBCODEC(RTPCODEC_G726_U, 16),
+        DEF_SUBCODEC(RTPCODEC_G726_A, 24),
+        DEF_SUBCODEC(RTPCODEC_G726_U, 24),
+        DEF_SUBCODEC(RTPCODEC_G726_A, 32),
+        DEF_SUBCODEC(RTPCODEC_G726_U, 32),
+        DEF_SUBCODEC(RTPCODEC_G726_A, 40),
+        DEF_SUBCODEC(RTPCODEC_G726_U, 40),
+
+        DEF_SUBCODECN(RTPCODEC_AMRNB, 0475, 1),
+        DEF_SUBCODECN(RTPCODEC_AMRNB, 0515, 2),
+        DEF_SUBCODECN(RTPCODEC_AMRNB, 0590, 3),
+        DEF_SUBCODECN(RTPCODEC_AMRNB, 0670, 4),
+        DEF_SUBCODECN(RTPCODEC_AMRNB, 0740, 5),
+        DEF_SUBCODECN(RTPCODEC_AMRNB, 0795, 6),
+        DEF_SUBCODECN(RTPCODEC_AMRNB, 1020, 7),
+        DEF_SUBCODECN(RTPCODEC_AMRNB, 1220, 8),
+
+        DEF_SUBCODECN(RTPCODEC_AMRWB, 0660, 1),
+        DEF_SUBCODECN(RTPCODEC_AMRWB, 0885, 2),
+        DEF_SUBCODECN(RTPCODEC_AMRWB, 1265, 3),
+        DEF_SUBCODECN(RTPCODEC_AMRWB, 1425, 4),
+        DEF_SUBCODECN(RTPCODEC_AMRWB, 1585, 5),
+        DEF_SUBCODECN(RTPCODEC_AMRWB, 1825, 6),
+        DEF_SUBCODECN(RTPCODEC_AMRWB, 1985, 7),
+        DEF_SUBCODECN(RTPCODEC_AMRWB, 2305, 8),
+        DEF_SUBCODECN(RTPCODEC_AMRWB, 2385, 9),
+
+        RTPCODEC_UNKOWN      = 0xFFFF
     } RTPCodec;
 
     typedef struct
@@ -84,9 +136,28 @@ namespace mqa {
         UINT32   nClockRate;
     } RTPPayloadCodecInfo;
 
+    struct RtpEModelFactor
+    {
+        RTPCodec codec;
+        float fLookahead;  // milli second
+        float Ie;          // equipment impairment factor
+        float Bpl;         // Packet-loss robustness factor
+    };
+    MQA_API RtpEModelFactor *GetEModelFactor(RTPCodec codec);
+    MQA_API RTPPayloadCodecInfo *GetCodecInfo(RTPCodec codec);
+
     MQA_API bool RTPCodec2RTPMediaType(const RTPCodec codec, RTPMediaType& mediaType, RTPStreamType& streamType) ;
     MQA_API int RTPCodec2CodecFrameSize(const RTPCodec codec, int* packetSize=0);
     MQA_API UINT32 RTPCodec2ClockRate(const RTPCodec codec);
+    MQA_API bool CalculateRFactor(RTPCodec nCodecType,
+            double    dCodecFrameSize,
+            double    dRTPjitter,
+            double    dRTCPDelay,
+            double    dAfactor,
+            double    dPacketLossRate,
+            double*   Rfactor,
+            double*   MOS);
+
 
 }  // namespace mqa
 

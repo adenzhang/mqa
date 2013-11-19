@@ -11,7 +11,16 @@
 
 #include "ftl/ftlcollections.h"
 
-#include "RtsdSupport.h"
+//#include "RtsdSupport.h"
+
+#ifndef RTSD_MAX_VLANMPLS_IDS
+#define RTSD_MAX_VLANMPLS_IDS 8
+#endif
+
+#ifndef NVLANMPLS_BITS
+#define NVLANMPLS_BITS 5
+#define NVLANMPLS_MASK ((1<<NVLANMPLS_BITS)-1)
+#endif
 
 
 namespace mqa {
@@ -175,11 +184,12 @@ namespace mqa {
     {
     public:
         VQStatsConnEntry2Key(){}
-        VQStatsConnEntry2Key(bool bIpv4, const void* pSrcIp, const void* pDestIp)
+        VQStatsConnEntry2Key(bool bIpv4, const void* pSrcIp, const void* pDestIp, bool sort=true)
             : ipSrc(bIpv4, pSrcIp)
             , ipDest(bIpv4, pDestIp)
+            , bSort(sort)
         {
-            if (ipSrc > ipDest)
+            if (bSort && ipSrc > ipDest)
             {
                 StatsIpAddr ipTemp = ipSrc;
                 ipSrc = ipDest;
@@ -202,6 +212,7 @@ namespace mqa {
 
         StatsIpAddr ipSrc;
         StatsIpAddr ipDest;
+        bool        bSort;
     };
     typedef VQStatsConnEntry2Key VQStatsConnIp;
 

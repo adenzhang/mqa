@@ -20,24 +20,13 @@ else()
 endif()
 message("*** ${ARCH}/${BUILDTYPE} ***")
 
-# AnalyzerCommon
-if( NOT AnalyzerCommon_DIR )
-    if( WIN32 )
-        set(AnalyzerCommon_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../AnalyzerCommon/include)
-    else()
-        set(AnalyzerCommon_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../3rdparty/AnalyzerCommon/include/AnalyzerCommon)
-    endif()
-endif()
-message("* AnalyzerCommon_DIR: ${AnalyzerCommon_DIR}")
-set(INCLUDES ${INCLUDES} ${AnalyzerCommon_DIR})
-
 # boost libraries
 set (BOOST_LIBS system thread program_options)
 if( NOT Boost_DIR )
     if( WIN32 )
     	SET(Boost_DIR ${PROJECT_SOURCE_DIR}/../../../../internal_release)
     else()
-    	set(Boost_DIR ${PROJECT_SOURCE_DIR}/../../../../3rdparty)
+        set(Boost_DIR ${PROJECT_SOURCE_DIR}/../../../../3rdparty/boost)
     endif()
 endif()
 set(INCLUDES ${INCLUDES} ${Boost_DIR}/include)
@@ -49,25 +38,9 @@ if( NOT WIN32 )
 	endforeach()
 endif()
 
-  
-
 set(Boost_USE_STATIC_LIBS OFF) 
 set(Boost_USE_MULTITHREADED ON)  
 set(Boost_USE_STATIC_RUNTIME OFF) 
-
-if( $ENV{BOOST_DIR} STREQUAL "")
-#	find_package( Boost REQUIRED ${BOOST_LIBS} )
-#	if(Boost_FOUND)
-#		set(INCLUDES ${INCLUDES} ${Boost_INCLUDE_DIRS})
-#		set(LIBS ${LIBS} ${Boost_LIBRARIES})
-#	else()
-#		message("Error! No proper boost libraries found")
-#	endif()
-else()
-	message("Found BOOST_DIR env: $ENV{BOOST_DIR}" )
-	set(INCLUDES ${INCLUDES} $ENV{BOOST_DIR}/include)
-	set(LIBPATHS ${LIBPATHS} $ENV{BOOST_DIR}/lib/${ARCH}/${BUILDTYPE})
-endif()
 
 add_definitions( -DBOOST_ALL_DYN_LINK )
 
@@ -76,9 +49,14 @@ if( WIN32 )
 	set(LIBS ${LIBS} ws2_32)
 endif()
 
+set(LIBPATHS ${LIBPATHS} ${CMAKE_CURRENT_BINARY_DIR}/../../lib/${ARCH}/${BUILDTYPE}) #mqa library
+# mqa library
 set(mqa_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
-set(LIBPATHS ${LIBPATHS} ${mqa_DIR}/lib/${ARCH}/${BUILDTYPE})
+if( NOT mqa_LIBDIR )
+    set(mqa_LIBDIR ${mqa_DIR}/lib/${ARCH}/${BUILDTYPE})
+endif()
+set(LIBPATHS ${LIBPATHS} ${mqa_LIBDIR} )
 set(INCLUDES ${INCLUDES} ${mqa_DIR}/include)
 
 set(LIBS ${LIBS} mqa)
@@ -91,24 +69,62 @@ message("- link dirs: ${LIBPATHS}")
 
 set(INCLUDES ${INCLUDES} ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 
+message("- INCLUDES dirs: ${INCLUDES}")
+
 include_directories(${INCLUDES})
 
 file(GLOB SRC
 #    "${CMAKE_CURRENT_SOURCE_DIR}/../*.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/*.cpp"
 )
+set(SRC ${SRC} ${CMAKE_CURRENT_SOURCE_DIR}/../../src/StatsFrameParser.cpp)
 
 add_executable( mqatest ${SRC} )
 
 target_link_libraries(mqatest mqa ${LIBS})
 
+set(OUTPUT_BINDIR ${OUTPUT_DIR})
 if( NOT OUTPUT_DIR )
-    if( WIN32 )
-            set(OUTPUT_DIR ${PROJECT_SOURCE_DIR}/../bin/${ARCH})
+    if( MSVC_IDE )
+        set(OUTPUT_DIR ${PROJECT_BINARY_DIR}/../bin/${ARCH})  # for win32 proj file generation
+        set(OUTPUT_BINDIR ${OUTPUT_DIR}/${BUILDTYPE})
     else()
-            set(OUTPUT_DIR ${PROJECT_SOURCE_DIR}/../bin/${ARCH}/${BUILDTYPE})
+        set(OUTPUT_DIR ${PROJECT_BINARY_DIR}/../bin/${ARCH}/${BUILDTYPE})
+        set(OUTPUT_BINDIR ${OUTPUT_DIR})
     endif()
 endif()
-message("* OUTPUT_DIR: ${OUTPUT_DIR}")
+message("- OUTPUT_DIR: ${OUTPUT_DIR}")
 
 set_target_properties(mqatest PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
+
+#message("CMAKE_BINARY_DIR:${CMAKE_BINARY_DIR} CMAKE_CURRENT_BINARY_DIR:${CMAKE_CURRENT_BINARY_DIR} PROJECT_BINARY_DIR:${PROJECT_BINARY_DIR}")
+#-------- run test --------------
+enable_testing()
+set( TEST_PCAP D:/data/calls/fromFranc/CaptureDataTabStats.pcap)
+#set( TEST_PCAP ${CMAKE_CURRENT_SOURCE_DIR}/call10.pcap)
+
+add_test(NAME run_mqatest
+WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+COMMAND ${CMAKE_COMMAND}
+-DTEST_PROG=${OUTPUT_BINDIR}/mqatest
+"-DARG1=--traffic=${TEST_PCAP}"
+"-DARG2=--threads=0"
+"-DARG3=--time"
+"-DLINKDIRS=${LIBPATHS}"
+"-DEXPECTED_FILE=${PROJECT_SOURCE_DIR}/expected.txt"
+"-DOUTPUT_FILE=${OUTPUT_BINDIR}/output.txt"
+-P ${CMAKE_CURRENT_SOURCE_DIR}/runtest.cmake
+)
+
+add_test(NAME run_mqatest_mt
+WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+COMMAND ${CMAKE_COMMAND}
+-DTEST_PROG=${OUTPUT_BINDIR}/mqatest
+"-DARG1=--traffic=${TEST_PCAP}"
+"-DARG2=--threads=4"
+"-DARG3=--time"
+"-DLINKDIRS=${LIBPATHS}"
+#"-DEXPECTED_FILE=${PROJECT_SOURCE_DIR}/expected.txt"
+"-DOUTPUT_FILE=${OUTPUT_BINDIR}/output_mt.txt"
+-P ${CMAKE_CURRENT_SOURCE_DIR}/runtest.cmake
+)

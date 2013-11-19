@@ -23,4 +23,14 @@ void VqtLog(int nLevel, const char* sMsg, ... );
 #define VqtInfo(sMsg, ...) VqtLog(VQT_LOG_INFO, sMsg, __VA_ARGS__)
 #define VqtDebug(sMsg, ...) VqtLog(VQT_LOG_DEBUG, sMsg, __VA_ARGS__)
 
+#define SetMinMax(nSample, nMin, nMax) \
+    if ((nSample < nMin)) nMin = nSample; \
+    if (nSample > nMax) nMax = nSample;
+
+#define InitMinMax(nSample, nMin, nMax) \
+    nMin = nSample; \
+    nMax = nSample;
+
+long double GetTimeMicroSec();
+
 #endif //_UTILITY_H_

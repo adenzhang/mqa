@@ -44,11 +44,11 @@ namespace mqa {
         nHeaderLength = 12 + nCC * 4;
 
         // Do the RTP sanity checks
-        return !IsValid();
+        return IsValid();
     }
     bool RtpPacketParser::IsValid() const
     {
-        if  (packetLength < nHeaderLength || (ver != 0x80)  || (nCC > 3)) {
+        if  (packetLength < nHeaderLength || (ver != 0x02)  || (nCC > 3)) {
             return false;
         }
         return true;

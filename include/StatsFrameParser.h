@@ -11,6 +11,8 @@ namespace mqa {
 #define RTSD_MAX_VLANMPLS_IDS 8
 #endif
 
+#define GPRS_TUNNELING_PORT 2152
+
     class StatsTransInfo
     {
     public:
@@ -76,14 +78,33 @@ namespace mqa {
         StatsIpInfo IpInfo;
         StatsTransInfo TransInfo;
     };
-    class MQA_SHARED StatsFrameParser
+    class StatsFrameParser
     {
+        const bool bCopyData;
+        bool       _allocatedData;
+        UINT16     _copyAppLayerSize;
     public:
         StatsFrameParser();
+        StatsFrameParser(UINT16 copyAppLayerSize);
         ~StatsFrameParser();
 
         void Reset();
-        bool ParseFrame(const UINT8* pFrame);  // RtsdBufFmtFrameHeader header
+//        bool ParseFrame(const UINT8* pFrame);  // RtsdBufFmtFrameHeader header
+        template<typename RtsdBufFmtFrameHeader>
+        bool ParseFrame(const UINT8 *pFrame)
+        {
+            if (!pFrame)
+                return false;
+
+            RtsdBufFmtFrameHeader *pHeader = (RtsdBufFmtFrameHeader *)pFrame;
+
+            // Get LIM port number
+            if (pHeader->limInfoLength == 3 && !pHeader->isPPFrame)
+                nLimPort = pHeader->limInfo[0] & 0x1F;
+
+            ParseFrame(pFrame + (UINT8) sizeof(RtsdBufFmtFrameHeader), pHeader->storedLength, nLimPort);
+            return true;
+        }
         bool ParseFrame(const UINT8* pFrame, UINT16 len, UINT8 limPort); // Ethernet header
 
         bool ParseVLANMPLSIds(UINT16& nOffset);
@@ -119,6 +140,9 @@ namespace mqa {
         inline const UINT8* DestIp(bool bUpper) const
         {
             return (SrcIp(bUpper) + IpAddrLen(bUpper));
+        }
+        inline StatsIpTransInfo& IpTransInfo(bool bUpper) {
+            return bUpper? UpperInfo:LowerInfo;
         }
 
         //---- get the real dest/source ip -------

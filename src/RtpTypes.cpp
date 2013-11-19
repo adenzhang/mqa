@@ -6,7 +6,7 @@
 
 namespace mqa {
 
-    const RTPPayloadCodecInfo c_RTPPayloadCodecs[] =
+    RTPPayloadCodecInfo c_RTPPayloadCodecs[] =
     {
         //  Codec                 Codec Name                  Clock Rate
         {RTPCODEC_PCMU,          "PCM mu-law",                   8000},
@@ -35,16 +35,29 @@ namespace mqa {
         {RTPCODEC_MPV,           "MPV",                         90000},
         {RTPCODEC_MP2T,          "MP2T",                        90000},
         {RTPCODEC_H263,          "H.263",                       90000},
-        {RTPCODEC_AMR,           "AMR",                          8000},
+        {RTPCODEC_AMRNB,         "AMR-NB",                       8000},
         {RTPCODEC_AMRWB,         "AMR-WB",                      16000},
         {RTPCODEC_EFR,           "GSM-EFR",                      8000},
         {RTPCODEC_EVRC,          "EVRC",                         8000},
         {RTPCODEC_OTHERAUDIO,    "Other Audio",                  8000},
         {RTPCODEC_OTHERVIDEO,    "Other Video",                 90000},
-        {RTPCODEC_OTHERAV,       "Other AV",                    90000}
+        {RTPCODEC_OTHERAV,       "Other AV",                    90000},
+        {RTPCODEC_RTAUDIO_NB,    "RTAudio-NB",                   8000},
+        {RTPCODEC_RTAUDIO_WB,    "RTAudio-WB",                  16000}
     };
     inline int GetAvailableCodecCount(){
         return sizeof(c_RTPPayloadCodecs) / sizeof(RTPPayloadCodecInfo);
+    }
+    MQA_API RTPPayloadCodecInfo *GetCodecInfo(RTPCodec codec)
+    {
+        int N = GetAvailableCodecCount();
+        for(int i =0;i <N; ++i) {
+            if( codec == c_RTPPayloadCodecs[i].eCodec ) {
+                return &c_RTPPayloadCodecs[i];
+            }
+        }
+        return NULL;
+
     }
 
     bool RTPCodec2RTPMediaType(const RTPCodec codec, RTPMediaType& mediaType, RTPStreamType& streamType) 
@@ -68,7 +81,7 @@ namespace mqa {
         case RTPCODEC_MPA:         // MPA
         case RTPCODEC_DVI4_11025:  // DVI4-11.025khz
         case RTPCODEC_DVI4_22050:  // DVI4-22.050khz
-        case RTPCODEC_AMR:         // AMR
+        case RTPCODEC_AMRNB:       // AMR-NB
         case RTPCODEC_AMRWB:       // AMR-WB
         case RTPCODEC_EFR:         // EFR
         case RTPCODEC_EVRC:        // EVRC
@@ -92,6 +105,11 @@ namespace mqa {
         case RTPCODEC_OTHERAV:     // Unknown Audio+Video
             streamType = RTPTYPE_IPTV;
             mediaType  = RTPMEDIA_AV;
+            break;
+        case RTPCODEC_RTAUDIO_NB:
+        case RTPCODEC_RTAUDIO_WB:
+            streamType = RTPTYPE_AUDIO;
+            mediaType  = RTPMEDIA_AUDIO;
             break;
 
         default:
@@ -117,6 +135,10 @@ namespace mqa {
                  dCodecFrameSize = 10;
                  break;
 
+            case RTPCODEC_RTAUDIO_NB:
+            case RTPCODEC_RTAUDIO_WB:
+                dCodecFrameSize = 10;
+                break;
              default:
                  dCodecFrameSize = 20;
                  break;
@@ -132,69 +154,15 @@ namespace mqa {
             }
         }
         return 8000; // default
-        int freq = 0;
-        switch(codec) {
-            case RTPCODEC_PCMU:
-            case RTPCODEC_1016:
-            case RTPCODEC_G721:
-            case RTPCODEC_GSM:
-            case RTPCODEC_G723:
-            case RTPCODEC_DVI4_8000:
-            case RTPCODEC_LPC:
-            case RTPCODEC_PCMA:
-            case RTPCODEC_G722:
-            case RTPCODEC_QCELP:
-            case RTPCODEC_CN:
-            case RTPCODEC_G728:
-            case RTPCODEC_G729:
-                freq = 8000;
-                break;
-            case RTPCODEC_CELLB:
-            case RTPCODEC_JPEG:
-            case RTPCODEC_NV:
-            case RTPCODEC_H261:
-            case RTPCODEC_MPV:
-            case RTPCODEC_MP2T:
-            case RTPCODEC_H263:
-            case RTPCODEC_MPA:
-                freq = 90000;
-                break;
-            case RTPCODEC_DVI4_11025:
-                freq = 11024;
-                break;
-            case RTPCODEC_DVI4_16000:
-                freq = 16000;
-                break;
-            case RTPCODEC_DVI4_22050:
-                freq = 22050;
-                break;
-            case RTPCODEC_L16_1CH:
-            case RTPCODEC_L16_2CH:
-                freq = 44100;
-                break;
-            default:
-                freq = 8000;
-                break;
-        }
-
-        return freq;
     }
-    void RTPCalculateExpectedBitRate(RTPCodec codecType, UINT32  packetSize, UINT32 nPayloadSize, UINT8& nSampleSize, UINT32& nCodecBitRate, UINT32& nCodecPacketSize)
+    /*
+    void RTPCalculateExpectedBitRate(RTPCodec codecType, UINT32 nPayloadSize, UINT8& nSampleSize, UINT32& nCodecBitRate, UINT32& nCodecPacketSize)
     {
-        UINT32 nTotalPacketBits;
-
-        if ((nPayloadSize == 0) /*|| (nPayloadType >= MAX_RTP_PAYLOAD_TYPE)*/)
-        {
-            ASSERT(false);
-            return;
-        }
-
-        // Use the actual received RTP packet size (m_nPacketSize) rather than the 
-        // payload size because we are going to be comparing expected bit rate to 
-        // the actual throughput for this stream and the throughput calculations use 
-        // m_nPacketSize
-        nTotalPacketBits = packetSize * 8;
-
+        // framesize = timestamp_delta/frequency
+        // bitrate = payloadSize*8/framesize;
+        //
+        // codecPackeSize = framesize = f * payloadsize
+        //
         switch (codecType)
         {
         case RTPCODEC_PCMU:   // PCMU
@@ -347,5 +315,6 @@ namespace mqa {
         //    pStream->nExpectedThroughput = pStream->nPacketsPerSecond * nTotalPacketBits;
         //}
     }
+    */
 
 }  // namespace mqa

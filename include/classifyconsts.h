@@ -27,6 +27,8 @@ enum eFragType
 #define ETHER_PROTO_IPV4_SWAP           0x0008
 #define ETHER_PROTO_IPV6                0x86DD
 #define ETHER_PROTO_IPV6_SWAP           0xDD86
+#define ETHER_PROTO_PPPOE               0x8864
+#define ETHER_PROTO_PPPOE_SWAP          0x6488
 
 #define ETHER_PROTO_IPV4_HEADER_VER     0x40
 #define ETHER_PROTO_IPV6_HEADER_VER     0x60

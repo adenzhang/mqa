@@ -1,0 +1,9 @@
+[10.62.8.57:2152]10.80.57.170:33168 - [10.62.200.248:2152]21.71.97.237:23328 0 [Avg]: nCalc=6048 Delay=-274 RFactor=0 MOS=1.0 Jitter=447ms, lossRate=0, TotalPackets=6051
+[10.62.8.57:2152]10.80.57.170:33168 - [10.62.200.248:2152]21.71.97.237:23328 1 [Avg]: nCalc=6016 Delay=-256 RFactor=4 MOS=1.1 Jitter=449ms, lossRate=0, TotalPackets=6019
+21.71.80.157:16618 - 10.80.57.170:33110 0 [Avg]: nCalc=6120 Delay=-260 RFactor=44 MOS=2.3 Jitter=444ms, lossRate=0, TotalPackets=6123
+21.71.80.157:16618 - 10.80.57.170:33110 1 [Avg]: nCalc=6016 Delay=-256 RFactor=4 MOS=1.1 Jitter=449ms, lossRate=0, TotalPackets=6019
+[10.62.8.57:2152]21.71.80.157:16618 - [10.62.200.248:2152]10.80.57.170:33110 0 [Avg]: nCalc=6048 Delay=-274 RFactor=0 MOS=1.0 Jitter=447ms, lossRate=0, TotalPackets=6051
+[10.62.8.57:2152]21.71.80.157:16618 - [10.62.200.248:2152]10.80.57.170:33110 1 [Avg]: nCalc=6016 Delay=-256 RFactor=4 MOS=1.1 Jitter=449ms, lossRate=0, TotalPackets=6019
+10.80.57.170:33168 - 21.71.97.237:23328 0 [Avg]: nCalc=6048 Delay=-274 RFactor=0 MOS=1.0 Jitter=447ms, lossRate=0, TotalPackets=6051
+10.80.57.170:33168 - 21.71.97.237:23328 1 [Avg]: nCalc=6033 Delay=-255 RFactor=44 MOS=2.3 Jitter=448ms, lossRate=0, TotalPackets=6036
+--- flows:10, Npackets:48389, RTPStreams:8, NCalc:48345 ---

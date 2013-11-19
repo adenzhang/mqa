@@ -26,8 +26,13 @@
 typedef long off_t;
 #endif
 //------------------------------------------
+#include <fstream>
+//#include <boost/iostreams/mapped_file.hpp>
+#include <boost/iostreams/device/mapped_file.hpp>
 
 using namespace std;
+
+#define BIGFILEREADER
 
 #define THREAD_READER_BUFFER_SIZE       (100*(1<<20)) //100M
 #define THREAD_READER_MAX_READ_SIZE     (64*(1<<10)) //64K
@@ -38,8 +43,88 @@ public:
     virtual bool Open(std::string sFilePath) = 0;
     virtual void Close() = 0;
     virtual bool ReadData(uint8_t*& pData, uint32_t nDataLength) = 0;
+
+    virtual ~CFileReader(){}
 };
 
+class CDiskFileReader
+    : public CFileReader
+{
+protected:
+	std::ifstream _file;
+public:
+	virtual ~CDiskFileReader() {
+		if( _file.is_open() ) _file.close();
+	}
+    virtual bool Open(std::string sFilePath)
+    {
+        _file.open(sFilePath.c_str(), std::ios::binary);
+        if( !_file ) return false;
+//        _filesize = _file.size();
+
+        return true;
+    }
+    virtual void Close()
+    {
+        _file.close();
+    }
+    virtual bool ReadData(uint8_t*& pData, uint32_t nDataLength)
+    {
+        if( !_file.is_open() ) return false;
+
+        if( buffer.capacity() < nDataLength) buffer.reserve(nDataLength);
+        buffer.resize(nDataLength);
+        pData = &buffer[0];
+        return nDataLength == (size_t)_file.read((char*)pData, nDataLength).gcount();
+    }
+
+//    int        _filesize;
+
+    std::vector<uint8_t>      buffer;
+};
+#ifdef BIGFILEREADER
+class CBigFileReader
+    : public CFileReader
+{
+public:
+    virtual ~CBigFileReader(){
+        if( _file.is_open() ) _file.close();
+    }
+    virtual bool Open(std::string sFilePath)
+    {
+        _file.open(sFilePath.c_str());
+        if( !_file ) return false;
+        _filesize = _file.size();
+        _pos = 0;
+
+        return true;
+    }
+    virtual void Close()
+    {
+        _file.close();
+    }
+    virtual bool ReadData(uint8_t*& pData, uint32_t nDataLength)
+    {
+        if( !_file.is_open() ) return false;
+        if( _pos + nDataLength > _filesize ) return false;
+        pData = (uint8_t *)_file.data() + _pos;
+        _pos += nDataLength;
+        return true;
+
+        //if( buffer.capacity() < nDataLength) buffer.reserve(nDataLength);
+        //buffer.resize(nDataLength);
+        //pData = &buffer[0];
+        //return nDataLength == (size_t)_file.read((char*)pData, nDataLength).gcount();
+    }
+
+    //std::ifstream _file;
+    boost::iostreams::mapped_file_source _file;
+
+    int        _filesize;
+    size_t     _pos;
+
+};
+#endif //BIGFILEREADER
 // Read all file content to memory before read data
 class CMemFileReader : public CFileReader
 {
@@ -406,7 +491,7 @@ bool CPcapReader::Open(string sFilePath)
     {
         if (!m_pFileReader)
         {
-            m_pFileReader = new CMemFileReader();
+            m_pFileReader = new CBigFileReader();
             if (!m_pFileReader)
                 break;
         }

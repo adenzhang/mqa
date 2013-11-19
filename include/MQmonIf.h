@@ -100,12 +100,10 @@ namespace mqa {
             , RFactor(0)
             , fLossRate(0)
             , nPackets(0)
+            , nDelay(0)
         {
         }
 
-        //UINT64 nPktsRcvd;
-        //UINT64 nPktsLost;
-        //UINT64 nPktsDiscarded;
         MQmonMOS MOS;
         float    Jitter;
         float    RFactor;
@@ -150,6 +148,10 @@ namespace mqa {
         virtual bool DetectStream(){return false;}
         virtual bool GetMetrics(CMQmonMetrics& Metrics) = 0;
 
+        virtual bool SetCodecType(INT16 codec) {
+            m_codecType = codec;
+            return true;
+        }
         CMQmonInterface* m_Interface;
         MQmonStreamType  m_StreamType;
         INT16            m_codecType;

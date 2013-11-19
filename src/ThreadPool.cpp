@@ -1,13 +1,17 @@
 #include "ThreadPool.h"
 #include <queue>
 #include <boost/thread.hpp>
-#include <boost/atomic.hpp>
+//#include <boost/atomic.hpp>
 
 #include "ftl/FifoPool.h"
 
+using namespace std;
+
+//#define _TBB
+
 struct TASK_T
 {
-    TASK_T(ThreadPool::FUNCTION_T f, void *p)
+    TASK_T(ThreadPool::FUNCTION_T f=NULL, void *p=NULL)
         : pFun(f), pParam(p) 
     {}
     ThreadPool::FUNCTION_T pFun;
@@ -71,21 +75,90 @@ struct thread_pool_if
 
     virtual size_t task_count() = 0;
     virtual size_t working_count() = 0;
+
+    virtual ~thread_pool_if(){}
 };
+#ifdef _TBB
+#include <tbb/concurrent_queue.h>
+
+
+struct thread_concurrentQ
+    : public thread_pool_if
+{
+protected:
+    typedef tbb::concurrent_bounded_queue<TASK_T> BoundedConcurrentTaskQ_T;
+    BoundedConcurrentTaskQ_T  tasks_;
+    boost::thread_group       threads_;
+    volatile bool             running_;
+    const size_t              maxTasks_;
+    const size_t              NTHREADS;
+    int                       workingThreads_;
+public:
+    thread_concurrentQ(size_t pool_size,size_t task_size) 
+        : maxTasks_(task_size)
+          ,running_( true )
+          ,workingThreads_(0)
+          ,NTHREADS(pool_size?pool_size:1)
+
+    {
+        for ( std::size_t i = 0; i < NTHREADS; ++i )
+            threads_.create_thread( boost::bind( &thread_concurrentQ::pool_main, this ) ) ;
+        if(maxTasks_>0) tasks_.set_capacity(maxTasks_);
+    }
+    virtual bool run_task(ThreadPool::FUNCTION_T f, void* param) {
+        tasks_.push(TASK_T(f,param));
+        return true;
+    }
+    virtual size_t task_count(){
+        return tasks_.size() + (NTHREADS - workingThreads_);
+    }
+    virtual size_t working_count(){
+        return workingThreads_;
+    }
+    virtual ~thread_concurrentQ() {
+        running_ = false;
+        tasks_.abort();
+        try{
+            threads_.join_all();
+        }catch ( ... ) {}
+    }
+protected:
+    virtual void pool_main(){
+        while(running_) {
+            try {
+                TASK_T task;
+                tasks_.pop(task);
+                workingThreads_++;
+                task();
+                workingThreads_--;
+            }catch(tbb::user_abort& ){
+                break;
+            }catch(...) {
+                break;
+            }
+        }
+    }
+};
+
+#endif // _TBB
+
 typedef FiFoQueue<TASK_T> FiFoTaskQ;
+
 template<typename QUEUE_TYPE>
 class thread_pool
     : public thread_pool_if
 {
-private:
+protected:
     QUEUE_TYPE                tasks_;
 
     boost::thread_group       threads_;
     boost::mutex              mutex_;
     boost::condition_variable condition_;
-    bool                      running_;
-    size_t                    maxTasks_;
-    boost::atomic<int>        workingThreads_;
+    volatile bool             running_;
+    const size_t              maxTasks_;
+    const size_t              NTHREADS;
+//    boost::atomic<int>        workingThreads_;
+    int                       workingThreads_;
 public:
 
     /// @brief Constructor.
@@ -95,11 +168,10 @@ public:
         ,running_( true )
         ,tasks_(task_size)
         ,workingThreads_(0)
+        ,NTHREADS(pool_size?pool_size:1)
     {
-        for ( std::size_t i = 0; i < pool_size; ++i )
-        {
+        for ( std::size_t i = 0; i < NTHREADS; ++i )
             threads_.create_thread( boost::bind( &thread_pool::pool_main, this ) ) ;
-        }
     }
 
     /// @brief Destructor.
@@ -137,35 +209,16 @@ public:
         condition_.notify_one();
         return true;
     }
-    bool run_task(TASK_T& task )
-    {
-        boost::unique_lock< boost::mutex > lock( mutex_ );
-
-        // If no threads are available, then return.
-        //if ( 0 == available_ ) return false;
-
-        // Decrement count, indicating thread is no longer available.
-        //--available_;
-        if( !tasks_.push( task ) )
-            return false;
-
-        // Set task and signal condition variable so that a worker thread will
-        // wake up andl use the task.
-        condition_.notify_one();
-        return true;
-    }
-
     size_t task_count() {
         boost::unique_lock< boost::mutex > lock( mutex_ );
         size_t n = tasks_.size();
         return n;
     }
     size_t working_count() {
-        return workingThreads_.load(boost::memory_order_relaxed);
+        return workingThreads_;//.load(boost::memory_order_relaxed);
     }
-private:
-    /// @brief Entry point for pool threads.
-    void pool_main()
+protected:
+    virtual void pool_main()
     {
         while( running_ )
         {
@@ -189,7 +242,7 @@ private:
                 TASK_T task = tasks_.front();
                 tasks_.pop();
 
-                workingThreads_.fetch_add(1, boost::memory_order_relaxed);
+                workingThreads_++; //.fetch_add(1, boost::memory_order_relaxed);
 
                 lock.unlock();
 
@@ -199,7 +252,7 @@ private:
                 }
                 // Suppress all exceptions.
                 catch ( ... ) {}
-                workingThreads_.fetch_sub(1, boost::memory_order_relaxed);
+                workingThreads_--; //.fetch_sub(1, boost::memory_order_relaxed);
             }
 
             // Task has finished, so increment count of available threads.
@@ -208,8 +261,52 @@ private:
         } // while running_
     }
 };
+
+// optimize for one thread model.
+template<typename QUEUE_TYPE>
+struct thread_one
+    : public thread_pool<QUEUE_TYPE>
+{
+    thread_one(size_t task_size)
+        : thread_pool<QUEUE_TYPE>(1, task_size)
+    {}
+    virtual bool run_task(ThreadPool::FUNCTION_T f, void* param) {
+        boost::unique_lock< boost::mutex > lock( thread_pool<QUEUE_TYPE>::mutex_ );
+        return thread_pool<QUEUE_TYPE>::tasks_.push( TASK_T(f, param) );
+    }
+private:
+    virtual void pool_main()
+    {
+        while( thread_pool<QUEUE_TYPE>::running_ ) {
+			if(!thread_pool<QUEUE_TYPE>::tasks_.empty() ) {
+                boost::unique_lock< boost::mutex > lock( thread_pool<QUEUE_TYPE>::mutex_ );
+                try{
+                    TASK_T task = thread_pool<QUEUE_TYPE>::tasks_.front();
+                    thread_pool<QUEUE_TYPE>::tasks_.pop();
+                    thread_pool<QUEUE_TYPE>::workingThreads_++; //.fetch_add(1, boost::memory_order_relaxed);
+                    lock.unlock();
+                    task();
+                }
+                catch ( ... ) {}
+                thread_pool<QUEUE_TYPE>::workingThreads_--; //.fetch_sub(1, boost::memory_order_relaxed);
+			}// if
+        } // while
+    }
+};
+
 ThreadPool::ThreadPool( std::size_t pool_size, size_t task_size )
-    : priv(task_size==0? (void*)(new thread_pool<StdTaskQ>(pool_size, task_size)) : (void*)(new thread_pool<FiFoTaskQ>(pool_size, task_size)) )
+ //: priv((void*)(new thread_one<StdTaskQ>(task_size)))
+    //: priv((void*)(new thread_concurrentQ(pool_size, task_size)))
+    : priv( pool_size>1? 
+#ifdef _TBB
+                         ((void*)(new thread_concurrentQ(pool_size, task_size)) )
+#else
+                         (task_size==0? (void*)(new thread_pool<StdTaskQ>(pool_size, task_size))
+                                        : (void*)(new thread_pool<FiFoTaskQ>(pool_size, task_size)) )
+#endif
+                         :(task_size==0? (void*)(new thread_one<StdTaskQ>(task_size))
+                                        : (void*)(new thread_one<FiFoTaskQ>(task_size)) )
+             )
 {
 };
 ThreadPool::~ThreadPool()

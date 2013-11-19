@@ -21,25 +21,14 @@ endif()
 
 message("*** ${ARCH}/${BUILDTYPE} ***")
 
-# AnalyzerCommon
-if( NOT AnalyzerCommon_DIR )
-    if( WIN32 )
-        set(AnalyzerCommon_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../AnalyzerCommon/include)
-    else()
-        set(AnalyzerCommon_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../3rdparty/AnalyzerCommon/include/AnalyzerCommon)
-    endif()
-endif()
-message("* AnalyzerCommon_DIR: ${AnalyzerCommon_DIR}")
-set(INCLUDES ${INCLUDES} ${AnalyzerCommon_DIR})
-
 # boost libraries
 set (BOOST_LIBS system thread)
 
 if( NOT Boost_DIR )
     if( WIN32 )
-    	SET(Boost_DIR  ${CMAKE_CURRENT_SOURCE_DIR}}/../../../internal_release) # include boost
+        SET(Boost_DIR  ${CMAKE_CURRENT_SOURCE_DIR}/../../../internal_release) # include boost
     else()
-    	SET(Boost_DIR  ${CMAKE_CURRENT_SOURCE_DIR}}/../../../3rdparty/boost)
+        SET(Boost_DIR  ${CMAKE_CURRENT_SOURCE_DIR}/../../../3rdparty/boost)
     endif()
 endif()
 message("* Boost_DIR: ${Boost_DIR}")
@@ -56,20 +45,6 @@ set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)  
 set(Boost_USE_STATIC_RUNTIME OFF) 
 
-if( $ENV{BOOST_DIR} STREQUAL "")
-#	find_package( Boost REQUIRED ${BOOST_LIBS} )
-#	if(Boost_FOUND)
-#		set(INCLUDES ${INCLUDES} ${Boost_INCLUDE_DIRS})
-#		set(LIBS ${LIBS} ${Boost_LIBRARIES})
-#	else()
-#		message("Error! No proper boost libraries found")
-#	endif()
-else()
-	message("Found BOOST_DIR env: $ENV{BOOST_DIR}" )
-	set(INCLUDES ${INCLUDES} $ENV{BOOST_DIR}/include)
-	set(LIBPATHS ${LIBPATHS} $ENV{BOOST_DIR}/lib/${ARCH}/${BUILDTYPE})
-endif()
-
 add_definitions( -DBOOST_ALL_DYN_LINK )
 
 message("- link libs: ${LIBS}")
@@ -82,10 +57,22 @@ set(INCLUDES ${INCLUDES} ${CMAKE_CURRENT_SOURCE_DIR}/../include)
 message("- INCLUDES: ${INCLUDES}")
 include_directories(${INCLUDES})
 
-file(GLOB SRC
-#    "${CMAKE_CURRENT_SOURCE_DIR}/../*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../src/*.cpp"
+set( SRC_FILES
+MQmonIf
+RtpPacketParser
+RtpStream
+RtpTypes
+ThreadPool
+emodel
 )
+
+foreach(F ${SRC_FILES})
+    set(SRC ${SRC} ${CMAKE_CURRENT_SOURCE_DIR}/../src/${F}.cpp)
+endforeach()
+
+#file(GLOB SRC
+#    "${CMAKE_CURRENT_SOURCE_DIR}/../src/*.cpp"
+#)
 
 LINK_DIRECTORIES(${LIBPATHS})
 
@@ -95,16 +82,19 @@ add_library( mqa SHARED ${SRC} )
 
 target_link_libraries(mqa ${LIBS})
 
+set(OUTPUT_BINDIR ${OUTPUT_DIR})
 if( NOT OUTPUT_DIR )
-    if( WIN32 )
-            set(OUTPUT_DIR ${PROJECT_BINARY_DIR}/lib/${ARCH})
+    if( MSVC_IDE )
+        set(OUTPUT_DIR ${PROJECT_BINARY_DIR}/../lib/${ARCH})
+        set(OUTPUT_BINDIR ${OUTPUT_DIR}/${BUILDTYPE})
     else()
-            set(OUTPUT_DIR ${PROJECT_BINARY_DIR}/lib/${ARCH}/${BUILDTYPE})
+        set(OUTPUT_DIR ${PROJECT_BINARY_DIR}/../lib/${ARCH}/${BUILDTYPE})
+        set(OUTPUT_BINDIR ${OUTPUT_DIR})
     endif()
 endif()
-message("* OUTPUT_DIR: ${OUTPUT_DIR}")
 
 set_target_properties(mqa PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 set_target_properties(mqa PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 set_target_properties(mqa PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_DIR})
+
 INSTALL(TARGETS mqa DESTINATION ${CMAKE_INSTALL_PREFIX_MRI}/lib COMPONENT mqa)

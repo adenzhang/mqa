@@ -38,6 +38,9 @@ namespace mqa {
         // step 4: calculate MOS & jitter
         virtual bool CalculateMOS(float& mos, float& rfactor) = 0;
 
+        virtual bool SetCodecType(INT16 codec) = 0;
+        virtual INT16 GetCodecType() = 0;
+
     };
 
     MQA_API RtpStream *CreateRtpStream();

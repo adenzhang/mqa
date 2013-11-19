@@ -24,19 +24,21 @@ namespace mqa {
 
     using namespace std;
 
+/*
     inline int SizeOf(RtsdBufFmtVQStatsType atype) {
         switch(atype) 
         {
         case RtsdBufFmtVQStatsEntryCountTypeMOS_T: return sizeof(RtsdBufFmtVQStatsEntryCountTypeMOS); 
         default: return 0; 
         }
-    } 
+    }
     inline int GetLength(RtsdBufFmtVQStatsEntryCount* entryCount) {
         int n = 0;
         for(int i=0; i<entryCount->nTypeCount; ++i)
             n += SizeOf((RtsdBufFmtVQStatsType)entryCount->Block[n]);
         return n + sizeof(entryCount->nTypeCount);
     }
+    */
 
     class FlowKey;
     class VQStatsStream
@@ -114,6 +116,7 @@ namespace mqa {
                     Streams[i]->retrieveResults();
             }
         }
+        /*
         virtual void dump(RtsdBufFmtVQStatsEntryCount& e)
         {
             e.nTypeCount = 1;
@@ -126,6 +129,7 @@ namespace mqa {
 
             assert(GetLength(&e) <= RtsdBufFmtVQStatsEntryCount_BlockMaxSize);
         }
+        */
 
         inline bool HasActivate() const
         {

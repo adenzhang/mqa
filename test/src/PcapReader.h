@@ -5,7 +5,7 @@
 
 #include <stdio.h>
 #include <string>
-#ifdef WIN32
+#if defined(WIN32) && _MSC_VER<1600
 #include "winstdint.h"
 #endif
 #include <boost/thread.hpp>
