@@ -17,7 +17,7 @@ public:
         HEADER_TYPE nElem:(HEADER_SIZE*8-1);
     };
 
-protected:
+public:
     char                *_buf, *_pEnd, *_pAvail;
     const size_t         _elemSize, _elemMaxCount, _oneBufSize;
     const size_t         MAX_SIZE;
@@ -73,6 +73,7 @@ public:
         , _oneBufSize(_elemSize + HEADER_SIZE)
     {
         _buf = new char[MAX_SIZE];
+        if(!_buf) throw std::bad_alloc();
         _pEnd = _buf + MAX_SIZE;
         char *ptr=(char*)firstBuffer();
         do{
@@ -84,7 +85,9 @@ public:
     {
         delete[] _buf;
     }
+    // number of elements allocated
     size_t size(){return nBuffers;}
+    // max number of elements can be allocated
     size_t capacity() {return _elemMaxCount;}
 
     //inline size_t getElemCount(void *buf) {
