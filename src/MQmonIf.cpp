@@ -1,7 +1,7 @@
-#include "MQmonIf.h"
+#include "mqa/MQmonIf.h"
 #include <list>
-#include "RtpStream.h"
-#include "timesec.h"
+#include "mqa/RtpStream.h"
+#include "ftl/timesec.h"
 #include "ftl/ftlcollections.h"
 #include <assert.h>
 

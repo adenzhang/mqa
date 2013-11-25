@@ -1,11 +1,11 @@
 #ifndef MQA_MQALGO_H_
 #define MQA_MQALGO_H_
 
-#include "mqa_shared.h"
-#include "timesec.h"
+#include "mqa/mqa_shared.h"
+#include "ftl/timesec.h"
 
-#include "RtpTypes.h"
-#include "RtpPacketParser.h"
+#include "mqa/RtpTypes.h"
+#include "mqa/RtpPacketParser.h"
 
 
 namespace mqa {

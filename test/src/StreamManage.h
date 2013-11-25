@@ -1,10 +1,10 @@
 #ifndef MQA_STREAMMANAGE_H_
 #define MQA_STREAMMANAGE_H_
 
-#include "StatsFrameParser.h"
-#include "mqa_flowkeys.h"
-#include "MQmonIf.h"
-#include "ThreadPool.h"
+#include "mqa/StatsFrameParser.h"
+#include "mqa/mqa_flowkeys.h"
+#include "mqa/MQmonIf.h"
+#include "mqa/ThreadPool.h"
 #include "PcapReader.h"
 
 #include <list>

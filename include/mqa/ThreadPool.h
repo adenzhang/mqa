@@ -1,5 +1,5 @@
 #pragma once
-#include <mqa_shared.h>
+#include <mqa/mqa_shared.h>
 #include <cstddef>
 
 class MQA_SHARED ThreadPool

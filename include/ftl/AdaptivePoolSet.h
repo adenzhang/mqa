@@ -6,23 +6,25 @@
 
 namespace ftl {
 // AdaptivePoolSet manages multiple of FixedSizePool or FifoPool.
-// it may allocate new pools when all of them are full.
-// And it may delete some pools when there are too many Pools.
+// it may allocate new pool when all of pools are full.
+// And it may delete a pool when it is empty.
 // User can specify a strategy about when to allocate and delete and the number of pools.
+//
+//
 template <typename ObjectPoolClass>
 struct AdaptivePoolSet
 {
     // the number of pools can increase or decrease when ST_INC or ST_DEC is specified, or both.
-    // ST_SPEED_CONSTANT indicates that each time allocating the same number of pools.
-    // ST_SPEED_LINEAR   is to allocate k-more than the previous allocated pools.
-    // ST_SPEED_POWER      means allocating times of the previous allocated pools.
-    enum STRATEGY_TYPE {ST_INC=0x01, ST_DEC=0x02, //ST_UPPER_LIMIT=0x04, ST_LOWER_LIMIT=0x08,
-                        ST_SPEED_CONSTANT=0x10, ST_SPEED_LINEAR=0x20,  ST_SPEED_POWER=0x30,
+    // ST_SPEED_CONSTANT indicates that each time allocating the same size pool with factor K.
+    // ST_SPEED_LINEAR   is to allocate a pool with speed factor K*m, where m is the number pools.
+    // ST_SPEED_POWER    to allocate a pool with speed factor K*Kprev, where Kprev is the previous factor K.
+    enum STRATEGY_TYPE {ST_INC=0x01, ST_DEC=0x02,
+                        ST_SPEED_CONSTANT=0x10, ST_SPEED_LINEAR=0x20,
                         ST_DEFAULT=ST_INC|ST_DEC|ST_SPEED_CONSTANT};
     enum STRATEGY_MASK { ST_DIRECTION_MASK=0x0F, ST_SPEED_MASK=0xF0};
+    enum {ALLOC_FACTOR_MAX=10, ALLOC_MIN=16};
 };
 
-template <>
 struct FixedSizePoolSet
     : public AdaptivePoolSet<FixedSizePool>
 {
@@ -35,32 +37,32 @@ struct FixedSizePoolSet
     typedef POOL_LIST::iterator            POOL_LIST_ITER;
     typedef POOL_LIST::const_iterator      POOL_LIST_CONSTITER;
 
-    POOL_LIST                              _pools, _emptyPools, _fullPools;
+    POOL_LIST                              _pools, _fullPools;
     const size_t                           _elemSize, _elemCount;  // per pool
     const SUPER_TYPE::STRATEGY_TYPE        _strategy;
-    const unsigned int                     _speedFactor;
-    int                                    _nPrevAlloc;            // number previous allocated pools, can be minus if deallocated.
+    const float                            _K;            // speed factor
+    unsigned int                           _nPrevAlloc, _countPrevAlloc;
+    unsigned int                           _nPrevPeak;
+    size_t                                 _nCapacity;
     
-    FixedSizePoolSet(size_t elemSize, size_t elemCount, SUPER_TYPE::STRATEGY_TYPE strategy=SUPER_TYPE::ST_DEFAULT, unsigned int speedFactor=1)
-        : _elemSize(elemSize), _elemCount(elemCount), _strategy(strategy), _speedFactor(speedFactor)
+    FixedSizePoolSet(size_t elemSize, size_t elemCount, float speedFactor=0.5, SUPER_TYPE::STRATEGY_TYPE strategy=SUPER_TYPE::ST_DEFAULT)
+        : _elemSize(elemSize), _elemCount(elemCount), _strategy(strategy), _K(speedFactor)
+        , _nPrevPeak(elemCount), _nPrevAlloc(elemCount), _countPrevAlloc(1)
+        , _nCapacity(elemCount)
     {
-        _emptyPools.push_back(_newPool());
-        _nPrevAlloc = 1;
+        _pools.push_back(_newPool(elemCount));
     }
 
     ~FixedSizePoolSet(){
         for(POOL_LIST_ITER it=_pools.begin(); it!=_pools.end(); ++it) {
             if(*it) delete *it;
         }
-        for(POOL_LIST_ITER it=_emptyPools.begin(); it!=_emptyPools.end(); ++it) {
-            if(*it) delete *it;
-        }
         for(POOL_LIST_ITER it=_fullPools.begin(); it!=_fullPools.end(); ++it) {
             if(*it) delete *it;
         }
     }
-    POOL_PTR _newPool() {
-        POOL_PTR(new POOL_TYPE(_elemSize, _elemCount);
+    POOL_PTR _newPool(size_t elemCount) {
+        return POOL_PTR(new POOL_TYPE(_elemSize, elemCount));
     }
 
     size_t size() const{
@@ -68,18 +70,25 @@ struct FixedSizePoolSet
         for(POOL_LIST_CONSTITER it=_pools.begin(); it!=_pools.end(); ++it) {
             n += (*it)->size();
         }
-        return n + _fullPools.size() * _elemCount;
+        for(POOL_LIST_CONSTITER it=_fullPools.begin(); it!=_fullPools.end(); ++it) {
+            n += (*it)->size();
+        }
+        return n;
     }
     size_t capacity() const {
-        return _pools.size() * _elemCount;
+        return _nCapacity;
+    }
+    size_t pools_count() const {
+        return _pools.size() + _fullPools.size();
     }
     bool empty() const {
+        if(!_fullPools.empty()) return false;
         for(POOL_LIST_CONSTITER it=_pools.begin(); it!=_pools.end(); ++it) {
             if( ! (*it)->empty() ) return false;
         }
         return true;
     }
-    POOL_LIST* findPool(POOL_LIST_ITER& itPool, void *ptr) {
+    POOL_LIST* _findPool2delalloc(POOL_LIST_ITER& itPool, void *ptr) {
         for(POOL_LIST_ITER it=_pools.begin(); it!=_pools.end(); ++it) {
             if( (*it)->_buf < (char*)ptr &&  (*it)->_pEnd > (char*)ptr) {
                 itPool = it;
@@ -88,78 +97,77 @@ struct FixedSizePoolSet
         }
         for(POOL_LIST_ITER it=_fullPools.begin(); it!=_fullPools.end(); ++it) {
             if( (*it)->_buf < (char*)ptr &&  (*it)->_pEnd > (char*)ptr) {
-                itPool = it;
-                return &_fullPools;
+                itPool = _swap(_fullPools, it, _pools);
+                return &_pools;
             }
         }
         return NULL;
     }
-    void swap(POOL_LIST& fromPool, POOL_LIST_ITER& it, POOL_LIST& toPool) {
-        toPool.push_back(*it);
+    POOL_LIST_ITER _swap(POOL_LIST& fromPool, POOL_LIST_ITER& it, POOL_LIST& toPool) {
+        POOL_LIST_ITER t = toPool.insert(toPool.end(),(*it));
         fromPool.erase(it);
+        return t;
     }
     bool deallocate(void *buf){
         POOL_LIST_ITER   itPool;
-        POOL_LIST       *pPools;
-        if( !(pPools=findPool(itPool, buf)) )
+        POOL_LIST       *pPools=NULL;
+        if( !(pPools=_findPool2delalloc(itPool, buf)) )
             return false;
 
         (*itPool)->deallocate(buf);
         if( (*itPool)->empty() ) {
-            swap(*pPools, itPool, _emptyPools);
-            if((_strategy & SUPER_TYPE::ST_DEC) {
+            if(_strategy & SUPER_TYPE::ST_DEC) {
+                _nPrevPeak = _nCapacity;
+                _nPrevAlloc = -(*itPool)->capacity();
+                _nCapacity -= (*itPool)->capacity();
+                pPools->erase(itPool);
+                _countPrevAlloc = 0;
             }
-            // calculate the number of pools to be deleted.
-            int nDealloc = calcCurrentSpeed(0);
         }
+        return true;
     }
 
-    inline int isDiffDirection(int bInc) const {
-        return (int(_nPrevAlloc>0)) ^ bInc & 0x01;
-    }
     // return absolute value.
-    int calcCurrentSpeed(int bInc) const  {
-        int prevSpeed = _nPrevAlloc>0?_nPrevAlloc:-_nPrevAlloc;
-        int n = _speedFactor;
-        if( !isDiffDirection(bInc) ) {
+    POOL_PTR _newPool() {
+        unsigned int prev=_nPrevAlloc>0?_nPrevAlloc:-_nPrevAlloc;
+        unsigned int nAlloc = prev;
+        if( _nPrevAlloc>0 )
+        {
             switch(_strategy&SUPER_TYPE::ST_SPEED_MASK) {
             case SUPER_TYPE::ST_SPEED_CONSTANT:
-                n = _speedFactor;
+                nAlloc = _elemCount*_K;
                 break;
             case SUPER_TYPE::ST_SPEED_LINEAR:
-                n = prevSpeed + _speedFactor;
-                break;
-            case SUPER_TYPE::ST_SPEED_POWER:
-                n = prevSpeed * _speedFactor;
+                nAlloc = _countPrevAlloc * (1-_K);
                 break;
             }
+        }else{  // previously deleted pool
+            nAlloc = _nPrevPeak;
         }
-        return n; 
+        if( nAlloc < SUPER_TYPE::ALLOC_MIN ) nAlloc = SUPER_TYPE::ALLOC_MIN;
+        // update status
+        _nPrevAlloc = nAlloc;
+        _nCapacity += nAlloc;
+        _countPrevAlloc++;
+        return POOL_PTR(new POOL_TYPE(_elemSize, nAlloc));
     }
     void  *allocate() {
         void *ret = NULL;
-        POOL_LIST& pools( _pools.empty()? _emptyPools: _pools );
+        POOL_LIST& pools( _pools );
         if( pools.empty() ) {
             // now pools is _emptyPools, all the pools are full
             if( _strategy & SUPER_TYPE::ST_INC ) {  // handle full pools
-                int nAlloc = calcCurrentSpeed(1);
                 // allocate new pools
-                // calculate the number of pools to be allocated with strategy
-                for(int i=0; i<nAlloc; ++i) {
-                    _emptyPools.push_back(_newPool());
-                }
-                _nPrevAlloc = nAlloc;
-
-                POOL_LIST_ITER itPool = _emptyPools.begin();
-                ret = (*itPool)->allocate();
-                swap(_emptyPools, itPool, _pools);
+                POOL_PTR pPool = _newPool();
+                _pools.push_back(pPool);
+                ret = pPool->allocate();
             }
         }else{
             POOL_LIST_ITER itPool = pools.begin();
             ret = (*itPool)->allocate();
             assert(ret);
             if( (*itPool)->full() ) {
-                swap(pools, itPool, _fullPools);
+                _swap(pools, itPool, _fullPools);
             }
         }
         return ret;

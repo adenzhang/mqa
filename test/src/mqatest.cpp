@@ -2,20 +2,20 @@
 //
 
 //#include "stdafx.h"
-#include "MqaAssert.h"
+#include "mqa/MqaAssert.h"
 #include <list>
 #include "LogUtility.h"
 #include "PcapReader.h"
-#include "StatsFrameParser.h"
-#include "mqa_flowkeys.h"
-#include "MQmonIf.h"
-#include "timesec.h"
+#include "mqa/StatsFrameParser.h"
+#include "mqa/mqa_flowkeys.h"
+#include "mqa/MQmonIf.h"
+#include "ftl/timesec.h"
 
 #include <boost/program_options.hpp>
 #include <boost/thread.hpp>
 #include <boost/unordered_map.hpp>
 
-#include "ThreadPool.h"
+#include "mqa/ThreadPool.h"
 
 #include <ftl/FixedSizePool.h>
 #include "StreamManage.h"

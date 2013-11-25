@@ -1,5 +1,5 @@
-#include "RtpTypes.h"
-#include "MqaAssert.h"
+#include "mqa/RtpTypes.h"
+#include "mqa/MqaAssert.h"
 
 #define ASSERT ASSERTMSG0
 #define TRACE dprintf

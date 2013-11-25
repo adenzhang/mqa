@@ -1,5 +1,5 @@
-#include "mqa_global.h"
-#include "RtpPacketParser.h"
+#include "mqa/mqa_global.h"
+#include "mqa/RtpPacketParser.h"
 
 // 16byte swap
 #define Swap16(swap_nValue) \

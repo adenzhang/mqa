@@ -5,7 +5,7 @@
 #include <netinet/in.h>
 #endif
 
-#include "StatsFrameParser.h"
+#include "mqa/StatsFrameParser.h"
 #include <string.h>
 
 // VLAN/MPLS FLAGS

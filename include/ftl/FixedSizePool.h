@@ -1,5 +1,5 @@
 #pragma  once
-
+#include <new>
 // size of each allocated buffer is fixed to multiple elements
 // buffer layout:   |1 int header|.....multiple elements buffer ...|
 //                      | number of elements

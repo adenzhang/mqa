@@ -4,7 +4,7 @@
 #include <boost/thread.hpp>
 
 #ifdef WIN32
-#include <mqa_global.h>
+#include <mqa/mqa_global.h>
 #endif
 
 #define VQT_LOG_MAX_LEN     1024

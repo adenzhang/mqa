@@ -6,7 +6,7 @@
 #include <ftl/FixedSizePool.h>
 
 #ifdef _DEBUG
-#include <RtpPacketParser.h>
+#include <mqa/RtpPacketParser.h>
 #endif
 
 // if MAX_ELEM==0, use default heap allocator.

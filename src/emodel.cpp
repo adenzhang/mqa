@@ -1,6 +1,6 @@
 #define NOMINMAX
 
-#include "RtpTypes.h"
+#include "mqa/RtpTypes.h"
 #include <math.h>
 #include <algorithm>
 

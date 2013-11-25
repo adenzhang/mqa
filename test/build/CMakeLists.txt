@@ -73,11 +73,22 @@ message("- INCLUDES dirs: ${INCLUDES}")
 
 include_directories(${INCLUDES})
 
-file(GLOB SRC
+#file(GLOB SRC
 #    "${CMAKE_CURRENT_SOURCE_DIR}/../*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../src/*.cpp"
-)
+#    "${CMAKE_CURRENT_SOURCE_DIR}/../src/*.cpp"
+#)
 set(SRC ${SRC} ${CMAKE_CURRENT_SOURCE_DIR}/../../src/StatsFrameParser.cpp)
+
+set( SRC_FILES
+LogUtility
+PcapReader
+StreamManage
+StreamTask
+mqatest
+)
+foreach(F ${SRC_FILES})
+    set(SRC ${SRC} ${CMAKE_CURRENT_SOURCE_DIR}/../src/${F}.cpp)
+endforeach()
 
 add_executable( mqatest ${SRC} )
 
@@ -97,34 +108,56 @@ message("- OUTPUT_DIR: ${OUTPUT_DIR}")
 
 set_target_properties(mqatest PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 
+#------- BufferPoolTest ------
+set( SRC_FILES
+TestBufferPool
+LogUtility
+)
+set(SRC)
+foreach(F ${SRC_FILES})
+    set(SRC ${SRC} ${CMAKE_CURRENT_SOURCE_DIR}/../src/${F}.cpp)
+endforeach()
+
+add_executable( bufferpooltest ${SRC})
+set_target_properties(bufferpooltest PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
+
 #message("CMAKE_BINARY_DIR:${CMAKE_BINARY_DIR} CMAKE_CURRENT_BINARY_DIR:${CMAKE_CURRENT_BINARY_DIR} PROJECT_BINARY_DIR:${PROJECT_BINARY_DIR}")
 #-------- run test --------------
 enable_testing()
-set( TEST_PCAP D:/data/calls/fromFranc/CaptureDataTabStats.pcap)
-#set( TEST_PCAP ${CMAKE_CURRENT_SOURCE_DIR}/call10.pcap)
+#set( TEST_PCAP D:/data/calls/fromFranc/CaptureDataTabStats.pcap)
+set( TEST_PCAP ${CMAKE_CURRENT_SOURCE_DIR}/call10.pcap)
 
-add_test(NAME run_mqatest
-WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-COMMAND ${CMAKE_COMMAND}
--DTEST_PROG=${OUTPUT_BINDIR}/mqatest
-"-DARG1=--traffic=${TEST_PCAP}"
-"-DARG2=--threads=0"
-"-DARG3=--time"
-"-DLINKDIRS=${LIBPATHS}"
-"-DEXPECTED_FILE=${PROJECT_SOURCE_DIR}/expected.txt"
-"-DOUTPUT_FILE=${OUTPUT_BINDIR}/output.txt"
--P ${CMAKE_CURRENT_SOURCE_DIR}/runtest.cmake
-)
-
-add_test(NAME run_mqatest_mt
-WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-COMMAND ${CMAKE_COMMAND}
--DTEST_PROG=${OUTPUT_BINDIR}/mqatest
-"-DARG1=--traffic=${TEST_PCAP}"
-"-DARG2=--threads=4"
-"-DARG3=--time"
-"-DLINKDIRS=${LIBPATHS}"
+#add_test(NAME run_mqatest
+#WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+#COMMAND ${CMAKE_COMMAND}
+#-DTEST_PROG=${OUTPUT_BINDIR}/mqatest
+#"-DARG1=--traffic=${TEST_PCAP}"
+#"-DARG2=--threads=0"
+#"-DARG3=--time"
+#"-DLINKDIRS=${LIBPATHS}"
 #"-DEXPECTED_FILE=${PROJECT_SOURCE_DIR}/expected.txt"
-"-DOUTPUT_FILE=${OUTPUT_BINDIR}/output_mt.txt"
+#"-DOUTPUT_FILE=${OUTPUT_BINDIR}/output.txt"
+#-P ${CMAKE_CURRENT_SOURCE_DIR}/runtest.cmake
+#)
+
+#add_test(NAME run_mqatest_mt
+#WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+#COMMAND ${CMAKE_COMMAND}
+#-DTEST_PROG=${OUTPUT_BINDIR}/mqatest
+#"-DARG1=--traffic=${TEST_PCAP}"
+#"-DARG2=--threads=4"
+#"-DARG3=--time"
+#"-DLINKDIRS=${LIBPATHS}"
+##"-DEXPECTED_FILE=${PROJECT_SOURCE_DIR}/expected.txt"
+#"-DOUTPUT_FILE=${OUTPUT_BINDIR}/output_mt.txt"
+#-P ${CMAKE_CURRENT_SOURCE_DIR}/runtest.cmake
+#)
+
+add_test(NAME run_BufferPoolTest
+WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+COMMAND ${CMAKE_COMMAND}
+"-DLINKDIRS=${LIBPATHS}"
+-DTEST_PROG=${OUTPUT_BINDIR}/bufferpooltest
+"-DOUTPUT_FILE=${OUTPUT_BINDIR}/BufferPoolTest.txt"
 -P ${CMAKE_CURRENT_SOURCE_DIR}/runtest.cmake
 )
