@@ -2336,9 +2336,11 @@ public:
 	bool Lookup( KINARGTYPE key, VOUTARGTYPE value ) const;
 	const Pair* Lookup( KINARGTYPE key ) const throw();
 	Pair* Lookup( KINARGTYPE key ) throw();
+    Pair* LookupHash( KINARGTYPE key, UINT hash) throw();
     V& operator[]( KINARGTYPE key ) ;
 
 	POSITION SetAt( KINARGTYPE key, VINARGTYPE value );
+    POSITION SetAtHash( KINARGTYPE key, UINT hash, VINARGTYPE value );
 	void SetValueAt( POSITION pos, VINARGTYPE value );
 
 	bool RemoveKey( KINARGTYPE key ) throw();
@@ -2393,6 +2395,7 @@ private:
 	void FreeNode( Node* pNode );
 	void FreePlexes() throw();
 	Node* GetNode( KINARGTYPE key, UINT& iBin, UINT& nHash, Node*& pPrev ) const throw();
+    Node* GetNode( KINARGTYPE key, UINT& iBin, Node*& pPrev, UINT nHash) const throw();
     Node* CreateNode( KINARGTYPE key, UINT iBin, UINT nHash ) ;
 	void RemoveNode( Node* pNode, Node* pPrev ) throw();
 	Node* FindNextNode( Node* pNode ) const throw();
@@ -2622,6 +2625,36 @@ POSITION Map< K, V, KTraits, VTraits >::SetAt( KINARGTYPE key, VINARGTYPE value 
 	}
 
 	return( POSITION( pNode ) );
+}
+
+template< typename K, typename V, class KTraits, class VTraits >
+POSITION Map< K, V, KTraits, VTraits >::SetAtHash( KINARGTYPE key, UINT nHash, VINARGTYPE value )
+{
+    Node* pNode;
+    UINT iBin;
+    //UINT nHash;
+    Node* pPrev;
+
+    pNode = GetNode( key, iBin, pPrev, nHash );
+    if( pNode == NULL )
+    {
+        pNode = CreateNode( key, iBin, nHash );
+        _FTLTRY
+        {
+            pNode->_value = value;
+        }
+        _FTLCATCHALL()
+        {
+            RemoveAtPos( POSITION( pNode ) );
+            _FTLRETHROW;
+        }
+    }
+    else
+    {
+        pNode->_value = value;
+    }
+
+    return( POSITION( pNode ) );
 }
 
 template< typename K, typename V, class KTraits, class VTraits >
@@ -2858,11 +2891,41 @@ void Map< K, V, KTraits, VTraits >::FreePlexes() throw()
 
 template< typename K, typename V, class KTraits, class VTraits >
 typename Map< K, V, KTraits, VTraits >::Node* Map< K, V, KTraits, VTraits >::GetNode(
+    KINARGTYPE key, UINT& iBin, Node*& pPrev, UINT nHash ) const throw()
+{
+    Node* pFollow;
+
+    //if( nHash!=0 ) 
+    //    nHash = KTraits::Hash( key );
+    iBin = nHash%_nBins;
+
+    if( _ppBins == NULL )
+    {
+        return( NULL );
+    }
+
+    pFollow = NULL;
+    pPrev = NULL;
+    for( Node* pNode = _ppBins[iBin]; pNode != NULL; pNode = pNode->_pNext )
+    {
+        if( (pNode->GetHash() == nHash) && KTraits::CompareElements( pNode->_key, key ) )
+        {
+            pPrev = pFollow;
+            return( pNode );
+        }
+        pFollow = pNode;
+    }
+
+    return( NULL );
+}
+
+template< typename K, typename V, class KTraits, class VTraits >
+typename Map< K, V, KTraits, VTraits >::Node* Map< K, V, KTraits, VTraits >::GetNode(
 	KINARGTYPE key, UINT& iBin, UINT& nHash, Node*& pPrev ) const throw()
 {
 	Node* pFollow;
 
-	nHash = KTraits::Hash( key );
+    nHash = KTraits::Hash( key );
 	iBin = nHash%_nBins;
 
 	if( _ppBins == NULL )
@@ -2928,6 +2991,18 @@ typename Map< K, V, KTraits, VTraits >::Pair* Map< K, V, KTraits, VTraits >::Loo
 	pNode = GetNode( key, iBin, nHash, pPrev );
 
 	return( pNode );
+}
+template< typename K, typename V, class KTraits, class VTraits >
+typename Map< K, V, KTraits, VTraits >::Pair* Map< K, V, KTraits, VTraits >::LookupHash( KINARGTYPE key, UINT hash ) throw()
+{
+    UINT iBin;
+    //UINT nHash;
+    Node* pNode;
+    Node* pPrev;
+
+    pNode = GetNode( key, iBin, pPrev, hash );
+
+    return( pNode );
 }
 
 template< typename K, typename V, class KTraits, class VTraits >
@@ -3201,6 +3276,1128 @@ void Map< K, V, KTraits, VTraits >::AssertValid() const
 	FTLASSERT( IsEmpty() || (_ppBins != NULL) );
 }
 #endif
+
+////========= HashMap ======================================================
+
+class PrimeNumberHashPolicy
+{
+private:
+    UINT _nBins;
+public:
+    PrimeNumberHashPolicy(size_t nBins){
+        ReserveBins(nBins);
+    }
+    inline UINT GetBinSize() const{ return _nBins;}
+
+    inline UINT GetBinIndex(UINT hash) const{
+        return hash%_nBins;
+    }
+    inline UINT ReserveBins(size_t nElements) {
+        // List of primes such that s_anPrimes[i] is the smallest prime greater than 2^(5+i/3)
+        static const UINT s_anPrimes[] =
+        {
+            17, 23, 29, 37, 41, 53, 67, 83, 103, 131, 163, 211, 257, 331, 409, 521, 647, 821, 
+            1031, 1291, 1627, 2053, 2591, 3251, 4099, 5167, 6521, 8209, 10331, 
+            13007, 16411, 20663, 26017, 32771, 41299, 52021, 65537, 82571, 104033, 
+            131101, 165161, 208067, 262147, 330287, 416147, 524309, 660563, 
+            832291, 1048583, 1321139, 1664543, 2097169, 2642257, 3329023, 4194319, 
+            5284493, 6658049, 8388617, 10568993, 13316089, UINT_MAX
+        };
+
+        float _fOptimalLoad = 1; // not used 
+        size_t nBins = (size_t)(nElements);
+        UINT nBinsEstimate = UINT(  UINT_MAX < nBins ? UINT_MAX : nBins );
+
+        // Find the smallest prime greater than our estimate
+        int iPrime = 0;
+        while( nBinsEstimate > s_anPrimes[iPrime] )
+        {
+            iPrime++;
+        }
+
+        if( s_anPrimes[iPrime] == UINT_MAX )
+        {
+            return( _nBins = nBinsEstimate );
+        }
+        else
+        {
+            return( _nBins = s_anPrimes[iPrime] );
+        }    }
+};
+struct MaskHashPolicy
+{
+private:
+    UINT _nBins;
+    UINT _BinsMask;
+public:
+    MaskHashPolicy(size_t nBins){
+        ReserveBins(nBins);
+    }
+    inline UINT GetBinSize() const { return _nBins;}
+    inline UINT GetBinIndex(UINT hash) const {
+        return hash&_BinsMask;
+    }
+    inline UINT ReserveBins(size_t nElements) {
+        if(nElements<16) nElements = 16;
+        nElements--;
+        _nBins = UINT(  UINT_MAX < nElements ? UINT_MAX : nElements );
+        // find the ceiling 2^i;
+        UINT k = 0, i;
+        for(i=0;i<sizeof(UINT); ++i) {
+            if( (_nBins>>i) & 1 )k = i;
+        }
+        _nBins = 1<<(i+1);
+        _BinsMask = _nBins-1;
+        return _nBins;
+    }
+};
+template< typename K, typename V, class KTraits = ElementTraits< K >, class VTraits = ElementTraits< V >, class HashBinPolicy=MaskHashPolicy >
+class HashMap
+    : public HashBinPolicy
+{
+public:
+    typedef const K& KINARGTYPE;
+    typedef K&       KOUTARGTYPE;
+    typedef const V& VINARGTYPE;
+    typedef V&       VOUTARGTYPE;
+    //typedef typename KTraits::INARGTYPE KINARGTYPE;
+    //typedef typename KTraits::OUTARGTYPE KOUTARGTYPE;
+    //typedef typename VTraits::INARGTYPE VINARGTYPE;
+    //typedef typename VTraits::OUTARGTYPE VOUTARGTYPE;
+
+    class Pair :
+        public __POSITION
+    {
+    protected:
+        Pair( KINARGTYPE key ) :
+             _key( key )
+                 , first(key), second(_value)
+             {
+             }
+
+    public:
+        Pair( KINARGTYPE key, VINARGTYPE v ) :
+          _key(key), _value(v)
+              , first(key), second(_value) {}
+
+          const K _key;
+          V _value;
+          const K   first;
+          V&        second;
+    };
+
+    //---   iterator operations ----
+    // forward iterator
+    template<typename Pair_t>
+    class iterator_t
+    {
+        Pair_t     *pair;
+        HashMap        *pMap;
+    public:
+        iterator_t(Pair_t* p, HashMap* m):pair(p), pMap(m){}
+
+        Pair_t* operator->() {
+            return pair;
+        }
+        Pair_t& operator*() {
+            return *pair;
+        }
+        iterator_t& operator++() {
+            if( pair == NULL) return *this;
+
+            Node* pNode = static_cast< Node* >( pair );
+            Node* pNext = pMap->FindNextNode( pNode );
+
+            pair = (Pair_t*) pNext ;
+            return *this;
+        }
+        iterator_t operator++(int) {
+            iterator_t tmp(*this);
+            operator++();
+            return tmp;
+        }
+        bool operator==(const iterator_t& it) {
+            return pMap == it.pMap && pair == it.pair;
+        }
+        bool operator!=(const iterator_t& it) {
+            return !operator==(it);
+        }
+    };
+    typedef iterator_t<Pair> iterator;
+    typedef iterator_t<const Pair> const_iterator;
+
+    inline void insert(const Pair& p) {
+        SetAt(p.first, p.second);
+    }
+    inline void insert(const std::pair<K const, V>& p) {
+        SetAt(p.first, p.second);
+    }
+    iterator begin(){
+        return iterator(static_cast<Pair*>(GetStartPosition()), this);
+    }
+    iterator end() {
+        return iterator(NULL, this);
+    }
+    inline iterator erase(KINARGTYPE key) {
+        Node *p = Lookup(key);
+        if(p==NULL) return iterator(NULL, this);
+        Node *next = FindNextNode(p);
+        RemoveNode(p, NULL);
+        return iterator(next, this);
+    }
+    template <typename iterator_T>
+    inline iterator erase(iterator_T it) {
+        iterator_T itNext = it;
+        itNext++;
+        RemoveAtPos(it->first);
+        return itNext;
+    }
+    const_iterator cbegin(){
+        return const_iterator(static_cast<const Pair*>(GetStartPosition()), this);
+    }
+    const_iterator cend(){
+        return const_iterator(NULL, this);
+    }
+    iterator find(KINARGTYPE key){
+        return iterator(Lookup(key), this);
+    }
+    const_iterator find(KINARGTYPE key) const {
+        return const_iterator(Lookup(key), this);
+    }
+    size_t size()const{
+        return GetCount();
+    }
+    bool empty()const{
+        return IsEmpty();
+    }
+    void clear(){
+        RemoveAll();
+    }
+
+private:
+    class Node :
+        public Pair
+    {
+    public:
+        Node( KINARGTYPE key, UINT nHash ) :
+          Pair( key ),
+              _nHash( nHash )
+          {}
+
+    public:
+        UINT GetHash() const throw()
+        {
+            return( _nHash );
+        }
+
+    public:
+        Node* _pNext;
+        UINT _nHash;
+    };
+
+public:
+    HashMap( UINT nBins = 17, float fOptimalLoad = 0.75f, 
+        float fLoThreshold = 0.25f, float fHiThreshold = 2.25f, UINT nBlockSize = 10 ) throw();
+
+    size_t GetCount() const throw();
+    bool IsEmpty() const throw();
+
+    bool Lookup( KINARGTYPE key, VOUTARGTYPE value ) const;
+    const Pair* Lookup( KINARGTYPE key ) const throw();
+    Pair* Lookup( KINARGTYPE key ) throw();
+    Pair* LookupHash( KINARGTYPE key, UINT hash) throw();
+    V& operator[]( KINARGTYPE key ) ;
+
+    POSITION SetAt( KINARGTYPE key, VINARGTYPE value );
+    POSITION SetAtHash( KINARGTYPE key, UINT hash, VINARGTYPE value );
+    void SetValueAt( POSITION pos, VINARGTYPE value );
+
+    bool RemoveKey( KINARGTYPE key ) throw();
+    void RemoveAll();
+    void RemoveAtPos( POSITION pos ) throw();
+
+    POSITION GetStartPosition() const throw();
+    void GetNextAssoc( POSITION& pos, KOUTARGTYPE key, VOUTARGTYPE value ) const;
+    const Pair* GetNext( POSITION& pos ) const throw();
+    Pair* GetNext( POSITION& pos ) throw();
+    const K& GetNextKey( POSITION& pos ) const;
+    const V& GetNextValue( POSITION& pos ) const;
+    V& GetNextValue( POSITION& pos );
+    void GetAt( POSITION pos, KOUTARGTYPE key, VOUTARGTYPE value ) const;
+    Pair* GetAt( POSITION pos ) throw();
+    const Pair* GetAt( POSITION pos ) const throw();
+    const K& GetKeyAt( POSITION pos ) const;
+    const V& GetValueAt( POSITION pos ) const;
+    V& GetValueAt( POSITION pos );
+
+    UINT GetHashTableSize() const throw();
+    bool InitHashTable( UINT nBins, bool bAllocNow = true );
+    void EnableAutoRehash() throw();
+    void DisableAutoRehash() throw();
+    void Rehash( UINT nBins = 0 );
+    void SetOptimalLoad( float fOptimalLoad, float fLoThreshold, float fHiThreshold, 
+        bool bRehashNow = false );
+
+#ifdef _DEBUG
+    void AssertValid() const;
+#endif  // _DEBUG
+
+    // Implementation
+private:
+    Node** _ppBins;
+    size_t _nElements;
+    //	UINT _nBins;
+    //	UINT _nBinMask;
+    float _fOptimalLoad;
+    float _fLoThreshold;
+    float _fHiThreshold;
+    size_t _nHiRehashThreshold;
+    size_t _nLoRehashThreshold;
+    ULONG _nLockCount;
+    UINT _nBlockSize;
+    Plex* _pBlocks;
+    Node* _pFree;
+
+private:
+    bool IsLocked() const throw();
+    //UINT PickSize( size_t nElements ) const throw();
+    Node* NewNode( KINARGTYPE key, UINT iBin, UINT nHash );
+    void FreeNode( Node* pNode );
+    void FreePlexes() throw();
+    Node* GetNode( KINARGTYPE key, UINT& iBin, UINT& nHash, Node*& pPrev ) const throw();
+    Node* GetNode( KINARGTYPE key, UINT& iBin, Node*& pPrev, UINT nHash) const throw();
+    Node* CreateNode( KINARGTYPE key, UINT iBin, UINT nHash ) ;
+    void RemoveNode( Node* pNode, Node* pPrev ) throw();
+    Node* FindNextNode( Node* pNode ) const throw();
+    void UpdateRehashThresholds() throw();
+
+public:
+    ~HashMap() throw();
+
+private:
+    // Private to prevent use
+    HashMap( const HashMap& ) throw();
+    HashMap& operator=( const HashMap& ) throw();
+};
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+inline size_t HashMap< K, V, KTraits, VTraits, HashBinPolicy >::GetCount() const throw()
+{
+    return( _nElements );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+inline bool HashMap< K, V, KTraits, VTraits, HashBinPolicy >::IsEmpty() const throw()
+{
+    return( _nElements == 0 );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+inline V& HashMap< K, V, KTraits, VTraits, HashBinPolicy >::operator[]( KINARGTYPE key )
+{
+    Node* pNode;
+    UINT iBin;
+    UINT nHash;
+    Node* pPrev;
+
+    pNode = GetNode( key, iBin, nHash, pPrev );
+    if( pNode == NULL )
+    {
+        pNode = CreateNode( key, iBin, nHash );
+    }
+
+    return( pNode->_value );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+inline UINT HashMap< K, V, KTraits, VTraits, HashBinPolicy >::GetHashTableSize() const throw()
+{
+    return( HashBinPolicy::GetBinSize() );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+inline void HashMap< K, V, KTraits, VTraits, HashBinPolicy >::GetAt( POSITION pos, KOUTARGTYPE key, VOUTARGTYPE value ) const
+{
+    FTLENSURE( pos != NULL );
+
+    Node* pNode = static_cast< Node* >( pos );
+
+    key = pNode->_key;
+    value = pNode->_value;
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+inline typename HashMap< K, V, KTraits, VTraits, HashBinPolicy >::Pair* HashMap< K, V, KTraits, VTraits, HashBinPolicy >::GetAt( POSITION pos ) throw()
+{
+    FTLASSERT( pos != NULL );
+
+    return( static_cast< Pair* >( pos ) );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+inline const typename HashMap< K, V, KTraits, VTraits, HashBinPolicy >::Pair* HashMap< K, V, KTraits, VTraits, HashBinPolicy >::GetAt( POSITION pos ) const throw()
+{
+    FTLASSERT( pos != NULL );
+
+    return( static_cast< const Pair* >( pos ) );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+inline const K& HashMap< K, V, KTraits, VTraits, HashBinPolicy >::GetKeyAt( POSITION pos ) const
+{
+    FTLENSURE( pos != NULL );
+
+    Node* pNode = (Node*)pos;
+
+    return( pNode->_key );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+inline const V& HashMap< K, V, KTraits, VTraits, HashBinPolicy >::GetValueAt( POSITION pos ) const
+{
+    FTLENSURE( pos != NULL );
+
+    Node* pNode = (Node*)pos;
+
+    return( pNode->_value );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+inline V& HashMap< K, V, KTraits, VTraits, HashBinPolicy >::GetValueAt( POSITION pos )
+{
+    FTLENSURE( pos != NULL );
+
+    Node* pNode = (Node*)pos;
+
+    return( pNode->_value );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+inline void HashMap< K, V, KTraits, VTraits, HashBinPolicy >::DisableAutoRehash() throw()
+{
+    _nLockCount++;
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+inline void HashMap< K, V, KTraits, VTraits, HashBinPolicy >::EnableAutoRehash() throw()
+{
+    FTLASSUME( _nLockCount > 0 );
+    _nLockCount--;
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+inline bool HashMap< K, V, KTraits, VTraits, HashBinPolicy >::IsLocked() const throw()
+{
+    return( _nLockCount != 0 );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+typename HashMap< K, V, KTraits, VTraits, HashBinPolicy >::Node* HashMap< K, V, KTraits, VTraits, HashBinPolicy >::CreateNode( 
+    KINARGTYPE key, UINT iBin, UINT nHash )
+{
+    Node* pNode;
+
+    if( _ppBins == NULL )
+    {
+        bool bSuccess;
+
+        bSuccess = InitHashTable( HashBinPolicy::GetBinSize() );
+        if( !bSuccess )
+        {
+            FtlThrow( E_OUTOFMEMORY );
+        }
+    }
+
+    pNode = NewNode( key, iBin, nHash );
+
+    return( pNode );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+POSITION HashMap< K, V, KTraits, VTraits, HashBinPolicy >::GetStartPosition() const throw()
+{
+    if( IsEmpty() )
+    {
+        return( NULL );
+    }
+
+    for( UINT iBin = 0; iBin < HashBinPolicy::GetBinSize(); iBin++ )
+    {
+        if( _ppBins[iBin] != NULL )
+        {
+            return( POSITION( _ppBins[iBin] ) );
+        }
+    }
+    FTLASSERT( false );
+
+    return( NULL );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+POSITION HashMap< K, V, KTraits, VTraits, HashBinPolicy >::SetAt( KINARGTYPE key, VINARGTYPE value )
+{
+    Node* pNode;
+    UINT iBin;
+    UINT nHash;
+    Node* pPrev;
+
+    pNode = GetNode( key, iBin, nHash, pPrev );
+    if( pNode == NULL )
+    {
+        pNode = CreateNode( key, iBin, nHash );
+        _FTLTRY
+        {
+            pNode->_value = value;
+        }
+        _FTLCATCHALL()
+        {
+            RemoveAtPos( POSITION( pNode ) );
+            _FTLRETHROW;
+        }
+    }
+    else
+    {
+        pNode->_value = value;
+    }
+
+    return( POSITION( pNode ) );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+POSITION HashMap< K, V, KTraits, VTraits, HashBinPolicy >::SetAtHash( KINARGTYPE key, UINT nHash, VINARGTYPE value )
+{
+    Node* pNode;
+    UINT iBin;
+    //UINT nHash;
+    Node* pPrev;
+
+    pNode = GetNode( key, iBin, pPrev, nHash );
+    if( pNode == NULL )
+    {
+        pNode = CreateNode( key, iBin, nHash );
+        _FTLTRY
+        {
+            pNode->_value = value;
+        }
+        _FTLCATCHALL()
+        {
+            RemoveAtPos( POSITION( pNode ) );
+            _FTLRETHROW;
+        }
+    }
+    else
+    {
+        pNode->_value = value;
+    }
+
+    return( POSITION( pNode ) );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+void HashMap< K, V, KTraits, VTraits, HashBinPolicy >::SetValueAt( POSITION pos, VINARGTYPE value )
+{
+    FTLASSERT( pos != NULL );
+
+    Node* pNode = static_cast< Node* >( pos );
+
+    pNode->_value = value;
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+HashMap< K, V, KTraits, VTraits, HashBinPolicy >::HashMap( UINT nBins, float fOptimalLoad, 
+                                           float fLoThreshold, float fHiThreshold, UINT nBlockSize ) throw() :
+_ppBins( NULL ),
+HashBinPolicy( nBins ),
+_nElements( 0 ),
+_nLockCount( 0 ),  // Start unlocked
+_fOptimalLoad( fOptimalLoad ),
+_fLoThreshold( fLoThreshold ),
+_fHiThreshold( fHiThreshold ),
+_nHiRehashThreshold( UINT_MAX ),
+_nLoRehashThreshold( 0 ),
+_pBlocks( NULL ),
+_pFree( NULL ),
+_nBlockSize( nBlockSize )
+{
+    FTLASSERT( nBins > 0 );
+    FTLASSERT( nBlockSize > 0 );
+
+    SetOptimalLoad( fOptimalLoad, fLoThreshold, fHiThreshold, false );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+void HashMap< K, V, KTraits, VTraits, HashBinPolicy >::SetOptimalLoad( float fOptimalLoad, float fLoThreshold,
+                                                       float fHiThreshold, bool bRehashNow )
+{
+    FTLASSERT( fOptimalLoad > 0 );
+    FTLASSERT( (fLoThreshold >= 0) && (fLoThreshold < fOptimalLoad) );
+    FTLASSERT( fHiThreshold > fOptimalLoad );
+
+    _fOptimalLoad = fOptimalLoad;
+    _fLoThreshold = fLoThreshold;
+    _fHiThreshold = fHiThreshold;
+
+    UpdateRehashThresholds();
+
+    if( bRehashNow && ((_nElements > _nHiRehashThreshold) || 
+        (_nElements < _nLoRehashThreshold)) )
+    {
+        Rehash( HashBinPolicy::ReserveBins( _nElements ) );
+    }
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+void HashMap< K, V, KTraits, VTraits, HashBinPolicy >::UpdateRehashThresholds() throw()
+{
+    _nHiRehashThreshold = size_t( _fHiThreshold*HashBinPolicy::GetBinSize() );
+    _nLoRehashThreshold = size_t( _fLoThreshold*HashBinPolicy::GetBinSize() );
+    if( _nLoRehashThreshold < 17 )
+    {
+        _nLoRehashThreshold = 0;
+    }
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+bool HashMap< K, V, KTraits, VTraits, HashBinPolicy >::InitHashTable( UINT nBins, bool bAllocNow )
+{
+    FTLASSUME( _nElements == 0 );
+    FTLASSERT( nBins > 0 );
+
+    if( _ppBins != NULL )
+    {
+        delete[] _ppBins;
+        _ppBins = NULL;
+    }
+
+    if( bAllocNow )
+    {
+        FTLTRY( _ppBins = new Node*[nBins] );
+        if( _ppBins == NULL )
+        {
+            return false;
+        }
+        memset( _ppBins, 0, sizeof( Node* )*nBins );
+    }
+    //_nBins = nBins;
+
+    UpdateRehashThresholds();
+
+    return true;
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+void HashMap< K, V, KTraits, VTraits, HashBinPolicy >::RemoveAll()
+{
+    DisableAutoRehash();
+    if( _ppBins != NULL )
+    {
+        for( UINT iBin = 0; iBin < HashBinPolicy::GetBinSize(); iBin++ )
+        {
+            Node* pNext;
+
+            pNext = _ppBins[iBin];
+            while( pNext != NULL )
+            {
+                Node* pKill;
+
+                pKill = pNext;
+                pNext = pNext->_pNext;
+                FreeNode( pKill );
+            }
+        }
+    }
+
+    delete[] _ppBins;
+    _ppBins = NULL;
+    _nElements = 0;
+
+    if( !IsLocked() )
+    {
+        InitHashTable( HashBinPolicy::ReserveBins( _nElements ), false );
+    }
+
+    FreePlexes();
+    EnableAutoRehash();
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+HashMap< K, V, KTraits, VTraits, HashBinPolicy >::~HashMap() throw()
+{
+    _FTLTRY
+    {
+        RemoveAll();
+    }
+    _FTLCATCHALL()
+    {
+        FTLASSERT(false);		
+    }
+}
+
+#pragma push_macro("new")
+#undef new
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+typename HashMap< K, V, KTraits, VTraits, HashBinPolicy >::Node* HashMap< K, V, KTraits, VTraits, HashBinPolicy >::NewNode( 
+    KINARGTYPE key, UINT iBin, UINT nHash )
+{
+    Node* pNewNode;
+
+    if( _pFree == NULL )
+    {
+        Plex* pPlex;
+        Node* pNode;
+
+        pPlex = Plex::Create( _pBlocks, _nBlockSize, sizeof( Node ) );
+        if( pPlex == NULL )
+        {
+            FtlThrow( E_OUTOFMEMORY );
+        }
+        pNode = (Node*)pPlex->data();
+        pNode += _nBlockSize-1;
+        for( int iBlock = _nBlockSize-1; iBlock >= 0; iBlock-- )
+        {
+            pNode->_pNext = _pFree;
+            _pFree = pNode;
+            pNode--;
+        }
+    }
+    FTLENSURE(_pFree != NULL );
+    pNewNode = _pFree;
+    _pFree = pNewNode->_pNext;
+
+    _FTLTRY
+    {
+        ::new( pNewNode ) Node( key, nHash );
+    }
+    _FTLCATCHALL()
+    {
+        pNewNode->_pNext = _pFree;
+        _pFree = pNewNode;
+
+        _FTLRETHROW;
+    }
+    _nElements++;
+
+    pNewNode->_pNext = _ppBins[iBin];
+    _ppBins[iBin] = pNewNode;
+
+    if( (_nElements > _nHiRehashThreshold) && !IsLocked() )
+    {
+        Rehash( HashBinPolicy::ReserveBins( _nElements ) );
+    }
+
+    return( pNewNode );
+}
+
+#pragma pop_macro("new")
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+void HashMap< K, V, KTraits, VTraits, HashBinPolicy >::FreeNode( Node* pNode )
+{
+    FTLENSURE( pNode != NULL );
+
+    pNode->~Node();
+    pNode->_pNext = _pFree;
+    _pFree = pNode;
+
+    FTLASSUME( _nElements > 0 );
+    _nElements--;
+
+    if( (_nElements < _nLoRehashThreshold) && !IsLocked() )
+    {
+        Rehash( HashBinPolicy::ReserveBins( _nElements ) );
+    }
+
+    if( _nElements == 0 )
+    {
+        FreePlexes();
+    }
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+void HashMap< K, V, KTraits, VTraits, HashBinPolicy >::FreePlexes() throw()
+{
+    _pFree = NULL;
+    if( _pBlocks != NULL )
+    {
+        _pBlocks->FreeDataChain();
+        _pBlocks = NULL;
+    }
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+typename HashMap< K, V, KTraits, VTraits, HashBinPolicy >::Node* HashMap< K, V, KTraits, VTraits, HashBinPolicy >::GetNode(
+    KINARGTYPE key, UINT& iBin, Node*& pPrev, UINT nHash ) const throw()
+{
+    Node* pFollow;
+
+    //if( nHash!=0 ) 
+    //    nHash = KTraits::Hash( key );
+    iBin = HashBinPolicy::GetBinIndex(nHash);
+
+    if( _ppBins == NULL )
+    {
+        return( NULL );
+    }
+
+    pFollow = NULL;
+    pPrev = NULL;
+    for( Node* pNode = _ppBins[iBin]; pNode != NULL; pNode = pNode->_pNext )
+    {
+        if( (pNode->GetHash() == nHash) && KTraits::CompareElements( pNode->_key, key ) )
+        {
+            pPrev = pFollow;
+            return( pNode );
+        }
+        pFollow = pNode;
+    }
+
+    return( NULL );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+typename HashMap< K, V, KTraits, VTraits, HashBinPolicy >::Node* HashMap< K, V, KTraits, VTraits, HashBinPolicy >::GetNode(
+    KINARGTYPE key, UINT& iBin, UINT& nHash, Node*& pPrev ) const throw()
+{
+    Node* pFollow;
+
+    nHash = KTraits::Hash( key );
+    iBin = HashBinPolicy::GetBinIndex(nHash);
+
+    if( _ppBins == NULL )
+    {
+        return( NULL );
+    }
+
+    pFollow = NULL;
+    pPrev = NULL;
+    for( Node* pNode = _ppBins[iBin]; pNode != NULL; pNode = pNode->_pNext )
+    {
+        if( (pNode->GetHash() == nHash) && KTraits::CompareElements( pNode->_key, key ) )
+        {
+            pPrev = pFollow;
+            return( pNode );
+        }
+        pFollow = pNode;
+    }
+
+    return( NULL );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+bool HashMap< K, V, KTraits, VTraits, HashBinPolicy >::Lookup( KINARGTYPE key, VOUTARGTYPE value ) const
+{
+    UINT iBin;
+    UINT nHash;
+    Node* pNode;
+    Node* pPrev;
+
+    pNode = GetNode( key, iBin, nHash, pPrev );
+    if( pNode == NULL )
+    {
+        return( false );
+    }
+
+    value = pNode->_value;
+
+    return( true );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+const typename HashMap< K, V, KTraits, VTraits, HashBinPolicy >::Pair* HashMap< K, V, KTraits, VTraits, HashBinPolicy >::Lookup( KINARGTYPE key ) const throw()
+{
+    UINT iBin;
+    UINT nHash;
+    Node* pNode;
+    Node* pPrev;
+
+    pNode = GetNode( key, iBin, nHash, pPrev );
+
+    return( pNode );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+typename HashMap< K, V, KTraits, VTraits, HashBinPolicy >::Pair* HashMap< K, V, KTraits, VTraits, HashBinPolicy >::Lookup( KINARGTYPE key ) throw()
+{
+    UINT iBin;
+    UINT nHash;
+    Node* pNode;
+    Node* pPrev;
+
+    pNode = GetNode( key, iBin, nHash, pPrev );
+
+    return( pNode );
+}
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+typename HashMap< K, V, KTraits, VTraits, HashBinPolicy >::Pair* HashMap< K, V, KTraits, VTraits, HashBinPolicy >::LookupHash( KINARGTYPE key, UINT hash ) throw()
+{
+    UINT iBin;
+    //UINT nHash;
+    Node* pNode;
+    Node* pPrev;
+
+    pNode = GetNode( key, iBin, pPrev, hash );
+
+    return( pNode );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+bool HashMap< K, V, KTraits, VTraits, HashBinPolicy >::RemoveKey( KINARGTYPE key ) throw()
+{
+    Node* pNode;
+    UINT iBin;
+    UINT nHash;
+    Node* pPrev;
+
+    pPrev = NULL;
+    pNode = GetNode( key, iBin, nHash, pPrev );
+    if( pNode == NULL )
+    {
+        return( false );
+    }
+
+    RemoveNode( pNode, pPrev );
+
+    return( true );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+void HashMap< K, V, KTraits, VTraits, HashBinPolicy >::RemoveNode( Node* pNode, Node* pPrev ) throw()
+{
+    FTLENSURE( pNode != NULL );
+
+    UINT iBin = HashBinPolicy::GetBinIndex( pNode->GetHash() );
+
+    if( pPrev == NULL )
+    {
+        FTLASSUME( _ppBins[iBin] == pNode );
+        _ppBins[iBin] = pNode->_pNext;
+    }
+    else
+    {
+        FTLASSERT( pPrev->_pNext == pNode );
+        pPrev->_pNext = pNode->_pNext;
+    }
+    FreeNode( pNode );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+void HashMap< K, V, KTraits, VTraits, HashBinPolicy >::RemoveAtPos( POSITION pos ) throw()
+{
+    FTLENSURE( pos != NULL );
+
+    Node* pNode = static_cast< Node* >( pos );
+    Node* pPrev = NULL;
+    UINT iBin = HashBinPolicy::GetBinIndex( pNode->GetHash() );
+
+    FTLASSUME( _ppBins[iBin] != NULL );
+    if( pNode == _ppBins[iBin] )
+    {
+        pPrev = NULL;
+    }
+    else
+    {
+        pPrev = _ppBins[iBin];
+        while( pPrev->_pNext != pNode )
+        {
+            pPrev = pPrev->_pNext;
+            FTLASSERT( pPrev != NULL );
+        }
+    }
+    RemoveNode( pNode, pPrev );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+void HashMap< K, V, KTraits, VTraits, HashBinPolicy >::Rehash( UINT nBins )
+{
+    Node** ppBins = NULL;
+
+    HashBinPolicy::ReserveBins( nBins == 0? _nElements: nBins );
+
+    if( nBins == HashBinPolicy::GetBinSize() )
+    {
+        return;
+    }
+    //	FTLTRACE(atlTraceMap, 2, _T("Rehash: %u bins\n"), nBins );
+
+    if( _ppBins == NULL )
+    {
+        // Just set the new number of bins
+        InitHashTable( nBins, false );
+        return;
+    }
+
+    FTLTRY(ppBins = new Node*[nBins]);
+    if (ppBins == NULL)
+    {
+        FtlThrow( E_OUTOFMEMORY );
+    }
+
+    memset( ppBins, 0, nBins*sizeof( Node* ) );
+
+    // Nothing gets copied.  We just rewire the old nodes
+    // into the new bins.
+    for( UINT iSrcBin = 0; iSrcBin < HashBinPolicy::GetBinSize(); iSrcBin++ )
+    {
+        Node* pNode;
+
+        pNode = _ppBins[iSrcBin];
+        while( pNode != NULL )
+        {
+            Node* pNext;
+            UINT iDestBin;
+
+            pNext = pNode->_pNext;  // Save so we don't trash it
+            iDestBin = pNode->GetHash()%nBins;
+            pNode->_pNext = ppBins[iDestBin];
+            ppBins[iDestBin] = pNode;
+
+            pNode = pNext;
+        }
+    }
+
+    delete[] _ppBins;
+    _ppBins = ppBins;
+
+    UpdateRehashThresholds();
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+void HashMap< K, V, KTraits, VTraits, HashBinPolicy >::GetNextAssoc( POSITION& pos, KOUTARGTYPE key,
+                                                     VOUTARGTYPE value ) const
+{
+    Node* pNode;
+    Node* pNext;
+
+    FTLASSUME( _ppBins != NULL );
+    FTLENSURE( pos != NULL );
+
+    pNode = (Node*)pos;
+    pNext = FindNextNode( pNode );
+
+    pos = POSITION( pNext );
+    key = pNode->_key;
+    value = pNode->_value;
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+const typename HashMap< K, V, KTraits, VTraits, HashBinPolicy >::Pair* HashMap< K, V, KTraits, VTraits, HashBinPolicy >::GetNext( POSITION& pos ) const throw()
+{
+    Node* pNode;
+    Node* pNext;
+
+    FTLASSUME( _ppBins != NULL );
+    FTLASSERT( pos != NULL );
+
+    pNode = (Node*)pos;
+    pNext = FindNextNode( pNode );
+
+    pos = POSITION( pNext );
+
+    return( pNode );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+typename HashMap< K, V, KTraits, VTraits, HashBinPolicy >::Pair* HashMap< K, V, KTraits, VTraits, HashBinPolicy >::GetNext( 
+    POSITION& pos ) throw()
+{
+    FTLASSUME( _ppBins != NULL );
+    FTLASSERT( pos != NULL );
+
+    Node* pNode = static_cast< Node* >( pos );
+    Node* pNext = FindNextNode( pNode );
+
+    pos = POSITION( pNext );
+
+    return( pNode );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+const K& HashMap< K, V, KTraits, VTraits, HashBinPolicy >::GetNextKey( POSITION& pos ) const
+{
+    Node* pNode;
+    Node* pNext;
+
+    FTLASSUME( _ppBins != NULL );
+    FTLENSURE( pos != NULL );
+
+    pNode = (Node*)pos;
+    pNext = FindNextNode( pNode );
+
+    pos = POSITION( pNext );
+
+    return( pNode->_key );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+const V& HashMap< K, V, KTraits, VTraits, HashBinPolicy >::GetNextValue( POSITION& pos ) const
+{
+    Node* pNode;
+    Node* pNext;
+
+    FTLASSUME( _ppBins != NULL );
+    FTLENSURE( pos != NULL );
+
+    pNode = (Node*)pos;
+    pNext = FindNextNode( pNode );
+
+    pos = POSITION( pNext );
+
+    return( pNode->_value );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+V& HashMap< K, V, KTraits, VTraits, HashBinPolicy >::GetNextValue( POSITION& pos )
+{
+    Node* pNode;
+    Node* pNext;
+
+    FTLASSUME( _ppBins != NULL );
+    FTLENSURE( pos != NULL );
+
+    pNode = (Node*)pos;
+    pNext = FindNextNode( pNode );
+
+    pos = POSITION( pNext );
+
+    return( pNode->_value );
+}
+
+template< typename K, typename V, class KTraits, class VTraits, class HashBinPolicy >
+typename HashMap< K, V, KTraits, VTraits, HashBinPolicy >::Node* HashMap< K, V, KTraits, VTraits, HashBinPolicy >::FindNextNode( Node* pNode ) const throw()
+{
+    Node* pNext;
+
+    if(pNode == NULL)
+    {
+        FTLASSERT(FALSE);
+        return NULL;
+    }
+
+    if( pNode->_pNext != NULL )
+    {
+        pNext = pNode->_pNext;
+    }
+    else
+    {
+        UINT iBin;
+
+        pNext = NULL;
+        iBin = HashBinPolicy::GetBinIndex(pNode->GetHash())+1;
+        while( (pNext == NULL) && (iBin < HashBinPolicy::GetBinSize()) )
+        {
+            if( _ppBins[iBin] != NULL )
+            {
+                pNext = _ppBins[iBin];
+            }
+
+            iBin++;
+        }
+    }
+
+    return( pNext );
+}
+
 ////========= RBMap ======================================================
 #pragma push_macro("new")
 #undef new
