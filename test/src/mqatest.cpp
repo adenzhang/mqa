@@ -59,39 +59,50 @@ static bool g_bTime = false;
 typedef StreamTask<MAX_TASKS_IN_POOL> PooledStreamTask;
 typedef StreamTask<0>                 MyStreamTask;
 
-void output_stats(int time, FlowMap& flows, size_t nPackets)
+#define _OUTPUT_INVALD_STREAM
+
+void output_stats(int time, FlowMap& aflows, size_t nPackets)
 {
     int nCalc = 0;
     int nRtpStreams = 0;
-    for(FlowMap::iterator it= flows.begin(); it!=flows.end(); ++it) {
+    FlowSortedMap flows;
+    CopyMap(aflows, flows);
+    for(FlowSortedMap::iterator it= flows.begin(); it!=flows.end(); ++it) {
         for(int nDir=0; nDir<2; ++nDir) {
             FlowStreamPairPtr strmPair = it->second;
+            std::string       addr = it->first.to_string();
             if( strmPair->strm[nDir] ) {
                 for(int i=0; i< strmPair->saved[nDir].size(); ++i) {
                     RtpFlowResult* res = &strmPair->saved[nDir][i];
-#ifdef _DEBUG
-                    if( res->currState != RtpFlowResult::S_VALID) 
-                        continue;
+                    if( res->currState != RtpFlowResult::S_VALID) {
+#ifdef _OUTPUT_INVALD_STREAM
+                        //VqtDebug("%s, %d, NPackets:%d, INVALID_STREAM\n", addr.c_str(), nDir, strmPair->nPackets[nDir]);
 #endif
+                        //continue;
+                    }
                     nRtpStreams++;
                     int ndiv = res->nCalulation;
                     nCalc += ndiv;
                     if(ndiv==0) {
-                        VqtDebug("%s - %s %d [Avg]: TotalPackets=%d\n"
-                            , strmPair->strIP[0], strmPair->strIP[1], nDir, res->sumRes.nPackets);
+                        VqtDebug("%s, %d, seq:%d, [Avg]: NPackets=%d\n", addr.c_str(), nDir, i, res->sumRes.nPackets);
                     }else{
 #ifdef _DEBUG
-                        VqtDebug("%s - %s %d [Avg]: nCalc=%d Delay=%d RFactor=%d MOS=%3.1f Jitter=%dms, lossRate=%d, TotalPackets=%d, SeqNO:%d-%d\n"
-                            , strmPair->strIP[0], strmPair->strIP[1], nDir, ndiv, res->sumRes.nDelay/ndiv, (int)res->sumRes.RFactor/ndiv, res->sumRes.MOS/ndiv
+                        VqtDebug("%s, %d, seq:%d, [Avg]: nCalc=%d Delay=%d RFactor=%d MOS=%3.1f Jitter=%dms, lossRate=%d, TotalPackets=%d, SeqNO:%d-%d\n"
+                            , addr.c_str(), nDir, i, ndiv, res->sumRes.nDelay/ndiv, (int)res->sumRes.RFactor/ndiv, res->sumRes.MOS/ndiv
                             , (int) res->sumRes.Jitter/ndiv, (int)res->sumRes.fLossRate*100, res->sumRes.nPackets, res->startID, res->currID);
 #else
-                        VqtDebug("%s - %s %d [Avg]: nCalc=%d Delay=%d RFactor=%d MOS=%3.1f Jitter=%dms, lossRate=%d, TotalPackets=%d\n"
-                            , strmPair->strIP[0], strmPair->strIP[1], nDir, ndiv, res->sumRes.nDelay/ndiv, (int)res->sumRes.RFactor/ndiv, res->sumRes.MOS/ndiv
+                        VqtDebug("%s, %d, seq:%d, [Avg]: nCalc=%d Delay=%d RFactor=%d MOS=%3.1f Jitter=%dms, lossRate=%d, TotalPackets=%d\n"
+                            , addr.c_str(), nDir, i, ndiv, res->sumRes.nDelay/ndiv, (int)res->sumRes.RFactor/ndiv, res->sumRes.MOS/ndiv
                             , (int) res->sumRes.Jitter/ndiv, (int)res->sumRes.fLossRate*100, res->sumRes.nPackets);
 #endif
                     }
                 } // for saved results
             }  // if has flow in nDir
+            else{
+#ifdef _OUTPUT_INVALD_STREAM
+                VqtDebug("%s, %d, NPackets:%d, NO_STREAM\n", addr.c_str(), nDir, strmPair->nPackets[nDir]);
+#endif
+            }
         }  // for nDir
     }  // for FlowMap
     if(g_bTime)
@@ -259,17 +270,22 @@ void multi_run(const string pcapfn, int nThread)
 
             mqa::StatsFrameParser *parser = *it;
             IpFlowPairPtr          tunnel;
+            VQStatsConnVlanPtr     vlan;
 
             if( parser->nTunnelType ) {
                 IpPort tsrc(parser->IsIpv4(false), parser->SrcIp(false), parser->IpTransInfo(false).TransInfo.nSrcPort);
                 IpPort tdest(parser->IsIpv4(false), parser->DestIp(false), parser->IpTransInfo(false).TransInfo.nDestPort);
-                tunnel.reset(new IpFlowPair(tsrc, tdest));
+                tunnel.reset(new IpFlowPair(parser->IpTransInfo(false).TransInfo.nTransProto, tsrc, tdest, false));
+            }
+            if( parser->nVLAN + parser->nMPLS ) {
+                vlan.reset(new mqa::VQStatsConnVlan(parser->nVLAN + parser->nMPLS, parser->aVLANMPLSIds, parser->nLimPort));
             }
 
             IpPort                src(parser->IsIpv4(), parser->SrcIp(), parser->IpTransInfo().TransInfo.nSrcPort);
             IpPort                dest(parser->IsIpv4(), parser->DestIp(), parser->IpTransInfo().TransInfo.nDestPort);
             int                   nDir = FlowDirection(src, dest);
-            IpFlowPair            aFlow(src,dest, tunnel);
+            IpFlowPair            aFlow(parser->IpTransInfo().TransInfo.nTransProto, src,dest, tunnel);
+            aFlow.vlan = vlan;
 
             FlowMap::iterator     itFlow = flows.find(aFlow);
             mqa::CMQmonInterface *monif=NULL; 
@@ -400,16 +416,22 @@ void single_run(const string pcapfn = "call10.pcap")
 #endif
             mqa::StatsFrameParser *parser = *it;
             IpFlowPairPtr          tunnel;
+            VQStatsConnVlanPtr     vlan;
 
             if( parser->nTunnelType ) {
                 IpPort tsrc(parser->IsIpv4(false), parser->SrcIp(false), parser->IpTransInfo(false).TransInfo.nSrcPort);
                 IpPort tdest(parser->IsIpv4(false), parser->DestIp(false), parser->IpTransInfo(false).TransInfo.nDestPort);
-                tunnel.reset(new IpFlowPair(tsrc, tdest));
+                tunnel.reset(new IpFlowPair(parser->IpTransInfo(false).TransInfo.nTransProto, tsrc, tdest, false));
             }
-            IpPort src(parser->IsIpv4(), parser->SrcIp(), parser->IpTransInfo().TransInfo.nSrcPort);
-            IpPort dest(parser->IsIpv4(), parser->DestIp(), parser->IpTransInfo().TransInfo.nDestPort);
-            int nDir = FlowDirection(src, dest);
-            IpFlowPair aFlow(src,dest, tunnel);
+            if( parser->nVLAN + parser->nMPLS ) {
+                vlan.reset(new mqa::VQStatsConnVlan(parser->nVLAN + parser->nMPLS, parser->aVLANMPLSIds, parser->nLimPort));
+            }
+
+            IpPort                src(parser->IsIpv4(), parser->SrcIp(), parser->IpTransInfo().TransInfo.nSrcPort);
+            IpPort                dest(parser->IsIpv4(), parser->DestIp(), parser->IpTransInfo().TransInfo.nDestPort);
+            int                   nDir = FlowDirection(src, dest);
+            IpFlowPair            aFlow(parser->IpTransInfo(false).TransInfo.nTransProto, src,dest, tunnel);
+            aFlow.vlan = vlan;
 
             FlowMap::iterator     itFlow = flows.find(aFlow);
             mqa::CMQmonInterface *monif=NULL; 
@@ -428,8 +450,10 @@ void single_run(const string pcapfn = "call10.pcap")
                 ////flows.insert(std::make_pair(aFlow, strmPair));
                 //flows.insert(FlowMap::Pair(aFlow, strmPair));
                 flows[aFlow] = strmPair;
+                strmPair->IncPackets(nDir);
             }else{  // old flow pair
                 strmPair = itFlow->second;
+                strmPair->IncPackets(nDir);
                 if( strmPair->strm[nDir] ) {
                     pStream = strmPair->strm[nDir];
                     pStream->IndicateRtpPacket(pRtp, rtpLen, parser->nTimestamp.tv_sec, parser->nTimestamp.tv_usec*1000);
@@ -593,7 +617,7 @@ int main(int argc, char* argv[])
         ("traffic,f", value<string>(), "traffic detail, can have multiple with format <traffic_file>%<stream_number_per_thread>%<throughput_byte_per_second>")
         ("threads,t", value<int>(), "set thread number.")
         ("time,T", "time the program")
-        ("perf,P", "performance test")
+        ("perf,P", "[--streams, -P] performance test")
         ("streams,S", value<int>(), "number of streams for perf test")
         ;
 

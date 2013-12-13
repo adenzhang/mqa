@@ -67,6 +67,8 @@ struct StreamTask
         mqa::CMQmonInterface *monif = strmPair->itf[nDir];
         mqa::CMQmonStream*   &pStream = strmPair->strm[nDir];
 
+        strmPair->IncPackets(nDir);
+
         if( pStream ) {
             pStream->IndicateRtpPacket(pRtp, rtpLen, parser->nTimestamp.tv_sec, parser->nTimestamp.tv_usec*1000);
         }else{
@@ -114,7 +116,7 @@ struct StreamTask
                 }
                 */
             }else{  // GetMetrics failed
-                VqtDebug("Failed to GetMetrics %s - %s %d\n", strmPair->strIP[0], strmPair->strIP[1], nDir);
+                VqtDebug("Failed to GetMetrics %s %d\n", strmPair->flow.to_string().c_str(), nDir);
             }
         }else{  // invalid RTP stream
 #ifdef _DEBUG

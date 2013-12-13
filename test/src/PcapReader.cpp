@@ -32,7 +32,9 @@ typedef long off_t;
 
 using namespace std;
 
+#ifdef WIN32
 #define BIGFILEREADER
+#endif
 
 #define THREAD_READER_BUFFER_SIZE       (100*(1<<20)) //100M
 #define THREAD_READER_MAX_READ_SIZE     (64*(1<<10)) //64K
@@ -491,7 +493,11 @@ bool CPcapReader::Open(string sFilePath)
     {
         if (!m_pFileReader)
         {
+#ifdef BIGFILEREADER
             m_pFileReader = new CBigFileReader();
+#else
+            m_pFileReader = new CDiskFileReader();
+#endif
             if (!m_pFileReader)
                 break;
         }

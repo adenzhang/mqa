@@ -1,5 +1,5 @@
 //#include "stdafx.h"
-#include <mqa_global.h>
+#include <mqa/mqa_global.h>
 #include <assert.h>
 #include <ftl/FifoPool.h>
 #include <ftl/FixedSizePool.h>
@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <boost/function.hpp>
 #include "LogUtility.h"
-#include <MqaAssert.h>
+#include <mqa/MqaAssert.h>
 #include <ftl/AdaptivePoolSet.h>
 
 
@@ -15,7 +15,7 @@ extern long double GetTimeMicroSec();
 
 void test_FixedSizeBufferSet()
 {
-    const int NSIZE = 1024*10;
+    const int NSIZE = 1024*1024;
     const int NELEM = NSIZE + 1024;
     long double time0, time1;
     ftl::FixedSizePoolSet pool(sizeof(int), NSIZE);

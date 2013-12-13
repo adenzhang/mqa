@@ -125,20 +125,22 @@ set_target_properties(bufferpooltest PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${OUTPU
 #-------- run test --------------
 enable_testing()
 #set( TEST_PCAP D:/data/calls/fromFranc/CaptureDataTabStats.pcap)
+#set( TEST_PCAP "D:/data/calls/MetroPCS_2012_12_07_161635(12_07_161636).pcap")
+#set ( TEST_PCAP "D:/data/metro_2013_01_03_170646.pcap")
 set( TEST_PCAP ${CMAKE_CURRENT_SOURCE_DIR}/call10.pcap)
 
-#add_test(NAME run_mqatest
-#WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-#COMMAND ${CMAKE_COMMAND}
-#-DTEST_PROG=${OUTPUT_BINDIR}/mqatest
-#"-DARG1=--traffic=${TEST_PCAP}"
+add_test(NAME run_mqatest
+WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+COMMAND ${CMAKE_COMMAND}
+-DTEST_PROG=${OUTPUT_BINDIR}/mqatest
+"-DARG1=--traffic=${TEST_PCAP}"
 #"-DARG2=--threads=0"
-#"-DARG3=--time"
-#"-DLINKDIRS=${LIBPATHS}"
+"-DARG3=--time"
+"-DLINKDIRS=${LIBPATHS}"
 #"-DEXPECTED_FILE=${PROJECT_SOURCE_DIR}/expected.txt"
-#"-DOUTPUT_FILE=${OUTPUT_BINDIR}/output.txt"
-#-P ${CMAKE_CURRENT_SOURCE_DIR}/runtest.cmake
-#)
+"-DOUTPUT_FILE=${OUTPUT_BINDIR}/output.txt"
+-P ${CMAKE_CURRENT_SOURCE_DIR}/runtest.cmake
+)
 
 #add_test(NAME run_mqatest_mt
 #WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
@@ -148,16 +150,16 @@ set( TEST_PCAP ${CMAKE_CURRENT_SOURCE_DIR}/call10.pcap)
 #"-DARG2=--threads=4"
 #"-DARG3=--time"
 #"-DLINKDIRS=${LIBPATHS}"
-##"-DEXPECTED_FILE=${PROJECT_SOURCE_DIR}/expected.txt"
+#"-DEXPECTED_FILE=${PROJECT_SOURCE_DIR}/expected.txt"
 #"-DOUTPUT_FILE=${OUTPUT_BINDIR}/output_mt.txt"
 #-P ${CMAKE_CURRENT_SOURCE_DIR}/runtest.cmake
 #)
 
-add_test(NAME run_BufferPoolTest
-WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-COMMAND ${CMAKE_COMMAND}
-"-DLINKDIRS=${LIBPATHS}"
--DTEST_PROG=${OUTPUT_BINDIR}/bufferpooltest
-"-DOUTPUT_FILE=${OUTPUT_BINDIR}/BufferPoolTest.txt"
--P ${CMAKE_CURRENT_SOURCE_DIR}/runtest.cmake
-)
+#add_test(NAME run_BufferPoolTest
+#WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+#COMMAND ${CMAKE_COMMAND}
+#"-DLINKDIRS=${LIBPATHS}"
+#-DTEST_PROG=${OUTPUT_BINDIR}/bufferpooltest
+#"-DOUTPUT_FILE=${OUTPUT_BINDIR}/BufferPoolTest.txt"
+#-P ${CMAKE_CURRENT_SOURCE_DIR}/runtest.cmake
+#)
