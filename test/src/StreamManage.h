@@ -110,7 +110,7 @@ struct IpFlowPair {
            << " - " << flow.dest.ip << ":" << flow.dest.port;
         if(flow.tunnel){
             ss  <<", [" << (int)flow.proto << ", "<< flow.tunnel->src.ip << ":" << flow.tunnel->src.port
-                <<" - " << flow.tunnel->dest.ip << ":" << flow.tunnel->dest.port << "(" << (int)flow.proto << ")"<< "]";
+                <<" - " << flow.tunnel->dest.ip << ":" << flow.tunnel->dest.port << "]";
         }
         if( flow.vlan ) {
             ss << ", vlan:" << flow.vlan->aVLANMPLSIds[0];

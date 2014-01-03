@@ -21,6 +21,9 @@
 #include "StreamManage.h"
 #include "StreamTask.h"
 
+#include <vector>
+#include <deque>
+
 #ifndef WIN32  // linux
 #include <unistd.h>
 #define Sleep(milli) usleep(milli*1000)

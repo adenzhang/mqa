@@ -7,12 +7,12 @@
 #include "mqa/RtpTypes.h"
 #include "mqa/RtpPacketParser.h"
 
-
 namespace mqa {
 
     struct RtpStream
     {
         virtual ~RtpStream(){}
+        virtual void reset(int nDetectPackets, int nNoisePackets) = 0;
 
         // return false and set invalid if invalid RTP header. 
         virtual bool IndicateRtpPacket(const ftl::timenano& captureTime, const RtpPacketParser& packet) = 0;
@@ -40,6 +40,8 @@ namespace mqa {
 
         virtual bool SetCodecType(INT16 codec) = 0;
         virtual INT16 GetCodecType() = 0;
+
+        virtual RTPMediaType GetMediaType() = 0;
 
     };
 

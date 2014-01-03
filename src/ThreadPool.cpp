@@ -4,7 +4,6 @@
 //#include <boost/atomic.hpp>
 
 #include "ftl/FifoPool.h"
-
 using namespace std;
 
 //#define _TBB

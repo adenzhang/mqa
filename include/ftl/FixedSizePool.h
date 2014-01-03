@@ -138,4 +138,122 @@ public:
     }
 
 };
+struct DefaultMallocator
+{
+    static void *malloc(size_t size) {
+        return ::malloc(size);
+    }
+    static void free(void *p) {
+        ::free(p);
+    }
+};
+#ifndef FIELD_OFFSET
+#define FIELD_OFFSET(type, field)    ((usigned int)(unsigned int *)&(((type *)0)->field))
+#endif
+
+template < size_t ElemSizeT, typename Mallocator = DefaultMallocator >
+class FixedSizeMemory
+{
+public:
+    typedef char      byte_t;
+    typedef void     *pointer_type;
+    typedef byte_t   *byte_pointer;
+
+    struct Node {
+        Node *next;
+        Node *prev;
+
+        Node()
+            : next(NULL), prev(NULL) {}
+
+        Node *insert_before(Node* beforeNode)
+        {
+            Node *pNode = this;
+            pNode->next = beforeNode;
+            pNode->prev = beforeNode->prev;
+            if(beforeNode->prev) {
+                beforeNode->prev->next = pNode;
+            }
+            beforeNode->prev = pNode;
+            return pNode;
+        }
+        Node *append(Node* afterNode)
+        {
+            Node *pNode = this;
+            pNode->prev = afterNode;
+            pNode->next = afterNode->next;
+            if(afterNode->next) {
+                afterNode->next->prev = pNode;
+            }
+            afterNode->next = pNode;
+            return pNode;
+        }
+        // detach from list
+        void detach() 
+        {
+            Node *pNode = this;
+            if(pNode->prev) {
+                pNode->prev->next = pNode->next;
+            }
+            if(pNode->next) {
+                pNode->next->prev = pNode->prev;
+            }
+        }
+    };
+    const size_t      ElemCount;
+    const size_t      ElemSize;
+protected:
+    struct BufNode
+        : public Node 
+    {
+        byte_t        buf[ElemSizeT];
+    };
+
+    Node               _alloc;    // allocated list
+    Node               _free;     // free list
+    size_t             _nalloc;   // count of allocated
+
+
+    static BufNode *Buf2Node(pointer_type abuf) 
+    {
+        return (BufNode*)(((byte_pointer)abuf)-FIELD_OFFSET(BufNode, buf));
+    }
+    Node *insert(Node *pNode, Node &toList)
+    {
+        pNode->detach();
+        return pNode->append(&toList);
+    }
+
+public:
+
+    FixedSizeMemory(size_t elemCount)
+        : ElemSize(ElemSizeT), ElemCount(elemCount)
+        , _alloc(NULL), _free(NULL)
+        , _nalloc(0)
+    {
+        BufNode *pNode = Mallocator::malloc(sizeof(BufNode)*elemCount);
+        if(pNode==NULL) throw std::bad_alloc();
+        memset(pNode, 0, sizeof(BufNode)*elemCount);
+        for(int i=0; i<elemCount-1; ++i)
+            pNode[i].next = &pNode[i+1];
+        pNode[elemCount-1].next = NULL;
+        _free.next = pNode;
+    }
+    pointer_type allocate()
+    {
+        BufNode *pNode = _free.next;
+        if(pNode == NULL) return NULL;
+        insert(pNode, _alloc);
+        _nalloc++;
+        return (pointer_type)pNode->buf;
+    }
+    void deallocate(pointer_type p)
+    {
+        BufNode *pNode = Buf2Node(p);
+        insert(p, _free);
+        _nalloc--;
+    }
+    size_t size() { return _nalloc;}
+
+};  // class FixedSizeMemory
 }  // namespace ftl

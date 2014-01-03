@@ -14,6 +14,8 @@ namespace mqa {
         RtpPacketInfo(RtpPacketParser p, const ftl::timenano& t)
             : RtpPacketParser(p), capTime(t)
         {}
+
+        RtpPacketInfo(){}
         ftl::timenano capTime; // capture time;
     };
     typedef std::list<RtpPacketInfo>    PacketList;
@@ -51,19 +53,24 @@ namespace mqa {
         // noise packets 
         int           nNoisePackets;
         enum {MAX_NOISE_PACKETS = 2};
+        enum {MAX_DETECT_PACKETS = 4};
 
-        RtpStreamImpl() 
+        RtpStreamImpl(int nDetectPackets = MAX_DETECT_PACKETS, int nNoisePackets = MAX_NOISE_PACKETS)
             : bValidStream(false)
             , nRecvPackts(0)
-            , NLASTPACKETS(4)
+            , NLASTPACKETS(nDetectPackets)
             , currDelay(0), prevDelay(0)
             , currJitter(0), prevJitter(0)
             , currMOS(0), prevMOS(0)
             , nMinSeqNum(0), nMaxSeqNum(0)
-            , nNoisePackets(0)
+            , nNoisePackets(nDetectPackets)
+            , lastPackets(0)
         {
         }
-
+        void reset(int nDetectPackets, int nNoisePackets)
+        {
+            new (this) RtpStreamImpl(nDetectPackets, nNoisePackets);
+        }
         void pushPacket(const RtpPacketInfo& p) {
             lastPackets.push_back(p);
             while(lastPackets.size() > NLASTPACKETS) {
@@ -204,17 +211,20 @@ namespace mqa {
         ftl::timenano CalculateJitter()
         {
             prevJitter = currJitter;
-            if(currDelay<0) currDelay = - currDelay;
-            currJitter = prevJitter + (currDelay-prevJitter)*(1.0/16);
+
+            ftl::timenano D = currDelay > prevDelay? (currDelay-prevDelay) : (prevDelay-currDelay);
+            currJitter = prevJitter + (D-prevJitter)*(1.0/16);
             return currJitter;
         }
 
         bool CalculateMOS(float& mos, float& rfactor)
         {
             UINT32 nPackts;
+            double fJitter = currJitter.as<float>()/1000000;
+            double fDelay = currDelay.as<float>()/1000000;
             double MOS, RFactor;
-            bool ret = CalculateRFactor(codecType, nCodecFrameSize, currJitter.as<float>()/1000000
-                , currDelay.as<float>()/1000000, 0.0, CalculatePacketLossRate(nPackts), &RFactor, &MOS);
+            bool ret = CalculateRFactor(codecType, nCodecFrameSize, fJitter>0?fJitter:-fJitter
+                , fDelay>0?fDelay:-fDelay, 0.0, CalculatePacketLossRate(nPackts), &RFactor, &MOS);
             mos = MOS;
             rfactor = RFactor;
             return ret;
@@ -230,6 +240,10 @@ namespace mqa {
         virtual INT16 GetCodecType()
         {
             return codecType;
+        }
+        RTPMediaType GetMediaType()
+        {
+            return mediaType;
         }
     };
 

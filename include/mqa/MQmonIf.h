@@ -148,6 +148,10 @@ namespace mqa {
         virtual bool DetectStream(){return false;}
         virtual bool GetMetrics(CMQmonMetrics& Metrics) = 0;
 
+        // Reset internal objects and stream will become invalid.
+        // Users should call DetectStream to detect stream.
+        virtual void Reset() { return ;}
+
         virtual bool SetCodecType(INT16 codec) {
             m_codecType = codec;
             return true;
@@ -160,11 +164,15 @@ namespace mqa {
 
     typedef bool (*MQmonNotifyHandler)(CMQmonInterface* pInterface, CMQmonStream* pStream, MQmonNotifyType nType, MQmonNotifyInfo* pInfo);
 
+    enum RtpDetectionParam {kDefaultDetectPackets = 4, kDefaultNoisePackets = 1};
+
     class MQmonPriv;
     class MQMON_DLLEXPORT MQmon 
     {
         MQmon();
         ~MQmon();
+        MQmon(const MQmon&){}
+        void operator=(const MQmon&){}
     public:
 
         MQmonPriv *priv;
@@ -178,6 +186,15 @@ namespace mqa {
 
         virtual CMQmonInterface* CreateInterface();
         virtual CMQmonStream* CreateStream(CMQmonInterface *intf=NULL);
+
+        // only given number of consecutive packets has been valid RTP packets, the RTP stream will be detected.
+        // if not specified, RtpDetectionParam::kDefaultDetectPackets will be used by default.
+        virtual void SetRtpDetectionPacketsNum(int num);
+
+        // when not larger than given number of consecutive packets has been invalid RTP packets, these packets will be regards as noise packets and be discarded.
+        // if not specified, RtpDetectionParam::kDefaultNoisePackets will be used by default.
+        virtual void SetRtpNoisePacketsNum(int num);
+
     };
 
 }  // namespace mqa
