@@ -6,29 +6,51 @@
 #include "ftl/FifoPool.h"
 using namespace std;
 
-//#define _TBB
+//#define USE_TBB
 
-struct TASK_T
+template< typename ARG_T >
+struct TASK1_T
 {
-    TASK_T(ThreadPool::FUNCTION_T f=NULL, void *p=NULL)
-        : pFun(f), pParam(p) 
+    typedef ARG_T arg_type;
+    TASK1_T(ThreadPool::FUNCTION_T f, const ARG_T& p)
+        : pParam(p)
     {}
+    TASK1_T()
+    {}
+    ARG_T pParam;
+
+};
+
+template< typename ARG_T >
+struct TASK2_T
+{
+    typedef ARG_T arg_type;
+
+    TASK2_T(ThreadPool::FUNCTION_T f=ThreadPool::FUNCTION_T(), const ARG_T& p= ARG_T())
+        : pFun(f), pParam(p)
+    {}
+    TASK2_T(const TASK1_T<ARG_T> &task1, ThreadPool::FUNCTION_T fun)
+        : pFun(fun), pParam(task1.pParam)
+    {}
+    TASK2_T(const TASK2_T &task2, ThreadPool::FUNCTION_T fun)
+        : pFun(task2.pFun?task2.pFun:fun), pParam(task2.pParam)
+    {}
+
     ThreadPool::FUNCTION_T pFun;
-    void *pParam;
+    ARG_T pParam;
 
     void operator()(){
         pFun(pParam);
     }
-};
-//typedef boost::function< void() > TASK_T;
-const size_t TASK_SIZE = sizeof(TASK_T);
 
-//typedef std::queue< TASK_T > StdQueue;
+
+};
 
 template< typename ELEM_TYPE >
 struct StdQueue
 {
-    std::queue< TASK_T >  pool;
+    typedef ELEM_TYPE value_type;
+    std::queue< ELEM_TYPE >  pool;
 
     StdQueue(size_t size){}
 
@@ -38,15 +60,15 @@ struct StdQueue
     void pop(){ pool. pop();}
     size_t size(){ return pool.size();}
 };
-typedef StdQueue<TASK_T> StdTaskQ;
 
 template< typename ELEM_TYPE >
-struct FiFoQueue
+struct FifoQueue
 {
+    typedef ELEM_TYPE value_type;
     ftl::FifoPool pool;
 
-    FiFoQueue(size_t size)
-        : pool(size*(sizeof(ELEM_TYPE)+pool.HEADER_SIZE)) 
+    FifoQueue(size_t size)
+        : pool(size*(sizeof(ELEM_TYPE)))
     {}
 
     bool empty(){return pool.empty();}
@@ -68,25 +90,28 @@ struct FiFoQueue
 
     size_t size() { return pool.size(); }
 };
+template<typename ARG_T>
 struct thread_pool_if
 {
-    virtual bool run_task(ThreadPool::FUNCTION_T pFun, void *pParam=NULL) = 0;
+    virtual bool run_task(ThreadPool::FUNCTION_T pFun, const ARG_T& pParam) {return false;}
 
-    virtual size_t task_count() = 0;
-    virtual size_t working_count() = 0;
+    virtual size_t task_count() {return 0;}
+    virtual size_t working_count() {return 0;}
 
     virtual ~thread_pool_if(){}
 };
-#ifdef _TBB
+#ifdef USE_TBB
 #include <tbb/concurrent_queue.h>
 
-
+template<typename TASK_T>
 struct thread_concurrentQ
-    : public thread_pool_if
+    : public thread_pool_if<typename TASK_T::arg_type>
 {
 protected:
+    typedef typename TASK_T::arg_type arg_type;
     typedef tbb::concurrent_bounded_queue<TASK_T> BoundedConcurrentTaskQ_T;
     BoundedConcurrentTaskQ_T  tasks_;
+    const ThreadPool::FUNCTION_T    taskProc_;
     boost::thread_group       threads_;
     volatile bool             running_;
     const size_t              maxTasks_;
@@ -95,6 +120,7 @@ protected:
 public:
     thread_concurrentQ(size_t pool_size,size_t task_size) 
         : maxTasks_(task_size)
+        , taskProc_(ThreadPool::FUNCTION_T())
           ,running_( true )
           ,workingThreads_(0)
           ,NTHREADS(pool_size?pool_size:1)
@@ -104,7 +130,20 @@ public:
             threads_.create_thread( boost::bind( &thread_concurrentQ::pool_main, this ) ) ;
         if(maxTasks_>0) tasks_.set_capacity(maxTasks_);
     }
-    virtual bool run_task(ThreadPool::FUNCTION_T f, void* param) {
+    thread_concurrentQ(ThreadPool::FUNCTION_T fun, size_t pool_size, size_t task_size)
+        : maxTasks_(task_size)
+        , taskProc_(fun)
+          ,running_( true )
+          ,workingThreads_(0)
+          ,NTHREADS(pool_size?pool_size:1)
+
+    {
+        for ( std::size_t i = 0; i < NTHREADS; ++i )
+            threads_.create_thread( boost::bind( &thread_concurrentQ::pool_main, this ) ) ;
+        if(maxTasks_>0) tasks_.set_capacity(maxTasks_);
+    }
+    virtual bool run_task(ThreadPool::FUNCTION_T f, const arg_type& param) {
+        if( f == ThreadPool::FUNCTION_T() && taskProc_ == ThreadPool::FUNCTION_T() ) return false;
         tasks_.push(TASK_T(f,param));
         return true;
     }
@@ -128,7 +167,10 @@ protected:
                 TASK_T task;
                 tasks_.pop(task);
                 workingThreads_++;
-                task();
+                {
+                    TASK2_T<arg_type> task2(task, taskProc_);
+                    task2();
+                }
                 workingThreads_--;
             }catch(tbb::user_abort& ){
                 break;
@@ -139,16 +181,19 @@ protected:
     }
 };
 
-#endif // _TBB
+#endif // USE_TBB
 
-typedef FiFoQueue<TASK_T> FiFoTaskQ;
+//typedef FiFoQueue<TASK_T> FiFoTaskQ;
 
 template<typename QUEUE_TYPE>
 class thread_pool
-    : public thread_pool_if
+    : public thread_pool_if<typename QUEUE_TYPE::value_type::arg_type>
 {
 protected:
+    typedef typename QUEUE_TYPE::value_type TASK_T;
+    typedef typename TASK_T::arg_type arg_type;
     QUEUE_TYPE                tasks_;
+    const ThreadPool::FUNCTION_T    taskProc_;
 
     boost::thread_group       threads_;
     boost::mutex              mutex_;
@@ -164,6 +209,20 @@ public:
     thread_pool( std::size_t pool_size, size_t task_size )
         : 
         maxTasks_(task_size)
+        ,taskProc_(ThreadPool::FUNCTION_T())
+        ,running_( true )
+        ,tasks_(task_size)
+        ,workingThreads_(0)
+        ,NTHREADS(pool_size?pool_size:1)
+    {
+        for ( std::size_t i = 0; i < NTHREADS; ++i )
+            threads_.create_thread( boost::bind( &thread_pool::pool_main, this ) ) ;
+    }
+    /// @brief Constructor.
+    thread_pool( ThreadPool::FUNCTION_T func, std::size_t pool_size, size_t task_size )
+        :
+        maxTasks_(task_size)
+       ,taskProc_(func)
         ,running_( true )
         ,tasks_(task_size)
         ,workingThreads_(0)
@@ -191,8 +250,9 @@ public:
         catch ( ... ) {}
     }
 
-    bool run_task(ThreadPool::FUNCTION_T f, void* param)
+    virtual bool run_task(ThreadPool::FUNCTION_T f, const arg_type& param)
     {
+        if( f == ThreadPool::FUNCTION_T() && taskProc_ == ThreadPool::FUNCTION_T() ) return false;
         boost::unique_lock< boost::mutex > lock( mutex_ );
 
         // If no threads are available, then return.
@@ -247,6 +307,7 @@ protected:
 
                 try
                 {
+                    TASK2_T<arg_type> task(task, taskProc_);
                     task();
                 }
                 // Suppress all exceptions.
@@ -266,10 +327,17 @@ template<typename QUEUE_TYPE>
 struct thread_one
     : public thread_pool<QUEUE_TYPE>
 {
+    typedef typename QUEUE_TYPE::value_type TASK_T;
+    typedef typename TASK_T::arg_type arg_type;
+
     thread_one(size_t task_size)
         : thread_pool<QUEUE_TYPE>(1, task_size)
     {}
-    virtual bool run_task(ThreadPool::FUNCTION_T f, void* param) {
+    thread_one(ThreadPool::FUNCTION_T fun, size_t task_size)
+        : thread_pool<QUEUE_TYPE>(fun, 1, task_size)
+    {}
+    virtual bool run_task(ThreadPool::FUNCTION_T f, const arg_type& param) {
+        if( f == ThreadPool::FUNCTION_T() && thread_pool<QUEUE_TYPE>::taskProc_ == ThreadPool::FUNCTION_T() ) return false;
         boost::unique_lock< boost::mutex > lock( thread_pool<QUEUE_TYPE>::mutex_ );
         return thread_pool<QUEUE_TYPE>::tasks_.push( TASK_T(f, param) );
     }
@@ -284,7 +352,10 @@ private:
                     thread_pool<QUEUE_TYPE>::tasks_.pop();
                     thread_pool<QUEUE_TYPE>::workingThreads_++; //.fetch_add(1, boost::memory_order_relaxed);
                     lock.unlock();
-                    task();
+                    {
+                        TASK2_T<arg_type> task2(task, thread_pool<QUEUE_TYPE>::taskProc_);
+                        task2();
+                    }
                 }
                 catch ( ... ) {}
                 thread_pool<QUEUE_TYPE>::workingThreads_--; //.fetch_sub(1, boost::memory_order_relaxed);
@@ -297,30 +368,47 @@ ThreadPool::ThreadPool( std::size_t pool_size, size_t task_size )
  //: priv((void*)(new thread_one<StdTaskQ>(task_size)))
     //: priv((void*)(new thread_concurrentQ(pool_size, task_size)))
     : priv( pool_size>1? 
-#ifdef _TBB
+#ifdef USE_TBB
                          ((void*)(new thread_concurrentQ(pool_size, task_size)) )
 #else
-                         (task_size==0? (void*)(new thread_pool<StdTaskQ>(pool_size, task_size))
-                                        : (void*)(new thread_pool<FiFoTaskQ>(pool_size, task_size)) )
+                         (task_size==0? (void*)(new thread_pool<StdQueue<TASK1_T<FUNCTION_ARG_T> > >(pool_size, task_size))
+                                        : (void*)(new thread_pool<FifoQueue<TASK1_T<FUNCTION_ARG_T> > >(pool_size, task_size)) )
 #endif
-                         :(task_size==0? (void*)(new thread_one<StdTaskQ>(task_size))
-                                        : (void*)(new thread_one<FiFoTaskQ>(task_size)) )
-             )
-{
-};
+                         :(task_size==0? (void*)(new thread_one<StdQueue<TASK1_T<FUNCTION_ARG_T> > >(task_size))
+                                        : (void*)(new thread_one<FifoQueue<TASK1_T<FUNCTION_ARG_T> > >(task_size)) )
+             ){};
+
+ThreadPool::ThreadPool( FUNCTION_T fun, std::size_t pool_size, size_t task_size )
+ //: priv((void*)(new thread_one<StdTaskQ>(task_size)))
+    //: priv((void*)(new thread_concurrentQ(pool_size, task_size)))
+    : priv( pool_size>1?
+#ifdef USE_TBB
+                         ((void*)(new thread_concurrentQ(fun, pool_size, task_size)) )
+#else
+                         (task_size==0? (void*)(new thread_pool<StdQueue<TASK2_T<FUNCTION_ARG_T> > >(fun, pool_size, task_size))
+                                        : (void*)(new thread_pool<FifoQueue<TASK2_T<FUNCTION_ARG_T> > >(fun, pool_size, task_size)) )
+#endif
+                         :(task_size==0? (void*)(new thread_one<StdQueue<TASK2_T<FUNCTION_ARG_T> > >(fun, task_size))
+                                        : (void*)(new thread_one<FifoQueue<TASK2_T<FUNCTION_ARG_T> > >(fun, task_size)) )
+             ){};
+
 ThreadPool::~ThreadPool()
 {
-    delete ((thread_pool_if*)priv);
+    delete ((thread_pool_if<FUNCTION_ARG_T>*)priv);
 }
-bool ThreadPool::post(FUNCTION_T pFun, void *pParam)
+bool ThreadPool::post(FUNCTION_T pFun, const FUNCTION_ARG_T& pParam)
 {
-    return ((thread_pool_if*)priv)->run_task(pFun, pParam);
+    return ((thread_pool_if<FUNCTION_ARG_T>*)priv)->run_task(pFun, pParam);
+}
+bool ThreadPool::post(const FUNCTION_ARG_T& pParam)
+{
+    return ((thread_pool_if<FUNCTION_ARG_T>*)priv)->run_task(FUNCTION_T(), pParam);
 }
 size_t ThreadPool::task_count()
 {
-    return ((thread_pool_if*)priv)->task_count();
+    return ((thread_pool_if<FUNCTION_ARG_T>*)priv)->task_count();
 }
 size_t ThreadPool::working_count()
 {
-    return ((thread_pool_if*)priv)->working_count();
+    return ((thread_pool_if<FUNCTION_ARG_T>*)priv)->working_count();
 }
