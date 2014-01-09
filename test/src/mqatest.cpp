@@ -21,11 +21,6 @@
 #include "StreamManage.h"
 #include "StreamTask.h"
 
-#ifndef WIN32  // linux
-#include <unistd.h>
-#define Sleep(milli) usleep(milli*1000)
-#endif
-
 // 16byte swap
 #define Swap16(swap_nValue) \
     ((UINT16)((((swap_nValue) >> 8) & 0x00FF) | (((swap_nValue) << 8) & 0xFF00)))
@@ -550,6 +545,7 @@ struct NullTask{
     }
 };
 
+
 void test_threadpool_speed()
 {
     int NTASKS = MAX_TASKS_IN_POOL*100;
@@ -602,9 +598,9 @@ void test_threadpool_speed()
 }
 int main(int argc, char* argv[])
 {
-    //test_threadpool_speed();
+//    test_threadpool_speed();
     //performance_test();
-    //return 0;
+//    return 0;
     string fn;
     int    nThread = -1;
     int    bPerf = false;

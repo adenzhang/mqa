@@ -35,7 +35,7 @@
 #else //--- linux
 
 #include <sys/time.h>
-#include <linuxbasetsd.h>
+#include <mqa/linuxbasetsd.h>
 
 #endif // WIN32
 

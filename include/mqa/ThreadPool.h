@@ -7,10 +7,12 @@ class MQA_SHARED ThreadPool
     ThreadPool(ThreadPool&){}
     void operator=(ThreadPool&){}
 public:
-    typedef void (*FUNCTION_T)(void *);
+    typedef void *FUNCTION_ARG_T;
+    typedef void (*FUNCTION_T)(FUNCTION_ARG_T);
 
     /// @brief Constructor.
     ThreadPool( std::size_t thread_size, std::size_t task_size=0);
+    ThreadPool( FUNCTION_T taskProc, std::size_t thread_size, std::size_t task_size=0);
 
     /// @brief Destructor.
     ~ThreadPool();
@@ -34,7 +36,8 @@ public:
         return post( My::dowork, new My(&functor, &FUNCTOR_T::operator()) );
     }
 
-    bool post(FUNCTION_T pFun, void *pParam);
+    bool post(FUNCTION_T pFun, const FUNCTION_ARG_T& pParam);
+    bool post(const FUNCTION_ARG_T& pParam);
 
 
     std::size_t task_count(); // count of pending tasks

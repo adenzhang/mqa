@@ -21,7 +21,7 @@ endif()
 message("*** ${ARCH}/${BUILDTYPE} ***")
 
 # boost libraries
-set (BOOST_LIBS system thread program_options)
+set (BOOST_LIBS system thread program_options chrono)
 if( NOT Boost_DIR )
     if( WIN32 )
     	SET(Boost_DIR ${PROJECT_SOURCE_DIR}/../../../../internal_release)
@@ -37,6 +37,8 @@ if( NOT WIN32 )
 		set(LIBS ${LIBS} boost_${F})
 	endforeach()
 endif()
+#find_library(Boost_LIBRARIES NAMES boost_system ${Boost_DIR}/lib/${ARCH}/${BUILDTYPE})
+#set(LIBS ${LIBS} ${Boost_DIR}/lib/${ARCH}/${BUILDTYPE}/boost_system)
 
 set(Boost_USE_STATIC_LIBS OFF) 
 set(Boost_USE_MULTITHREADED ON)  
@@ -44,11 +46,20 @@ set(Boost_USE_STATIC_RUNTIME OFF)
 
 add_definitions( -DBOOST_ALL_DYN_LINK )
 
+# tbb library
+if( Tbb_DIR )
+	set(INCLUDES ${INCLUDES} ${Tbb_DIR}/include)
+	set(LIBPATHS ${LIBPATHS} ${Tbb_DIR}/lib)
+	set(LIBPATHS ${LIBPATHS} ${Tbb_DIR}/lib/${ARCH}/${BUILDTYPE})
+	set(LIBS ${LIBS} tbb)
+#        set(LIBS ${LIBS} tbbmalloc tbbmalloc_proxy)
+        add_definitions( -DUSE_TBB )
+endif()
+
 # winsock library
 if( WIN32 )
 	set(LIBS ${LIBS} ws2_32)
 endif()
-
 set(LIBPATHS ${LIBPATHS} ${CMAKE_CURRENT_BINARY_DIR}/../../lib/${ARCH}/${BUILDTYPE}) #mqa library
 # mqa library
 set(mqa_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../..)
@@ -109,6 +120,7 @@ message("- OUTPUT_DIR: ${OUTPUT_DIR}")
 set_target_properties(mqatest PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 
 #------- BufferPoolTest ------
+message("executable BufferPoolTest")
 set( SRC_FILES
 TestBufferPool
 LogUtility
@@ -117,8 +129,8 @@ set(SRC)
 foreach(F ${SRC_FILES})
     set(SRC ${SRC} ${CMAKE_CURRENT_SOURCE_DIR}/../src/${F}.cpp)
 endforeach()
-
 add_executable( bufferpooltest ${SRC})
+target_link_libraries(bufferpooltest ${LIBS})
 set_target_properties(bufferpooltest PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 
 #message("CMAKE_BINARY_DIR:${CMAKE_BINARY_DIR} CMAKE_CURRENT_BINARY_DIR:${CMAKE_CURRENT_BINARY_DIR} PROJECT_BINARY_DIR:${PROJECT_BINARY_DIR}")
