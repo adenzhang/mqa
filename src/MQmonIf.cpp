@@ -71,6 +71,10 @@ namespace mqa {
         {
             return rtpStream->IndicateRtpPacket(timenano(timeSec, timeNSec), RtpPacketParser((const char*)pPkt, pPktLength));
         }
+        virtual bool IndicateRtcpPacket(const UINT8* pPkt, UINT16 pPktLength, UINT32 timeSec, UINT32 timeNSec)
+        {
+            return rtpStream->IndicateRtcpPacket(timenano(timeSec, timeNSec), RtcpPacketParser((const char*)pPkt, pPktLength));
+        }
         virtual bool IsValidStream()
         {
             return rtpStream->IsValidStream();
@@ -88,15 +92,16 @@ namespace mqa {
         {
             if(!rtpStream->IsValidStream()) return false;
             ftl::timenano delay = rtpStream->CalculateOneWayDelay();
+            ftl::timenano jitter = rtpStream->CalculateJitter();
             Metrics.nDelay = delay.as<int>(); 
             Metrics.nDelay /= 1000000; // to milli-sec
             UINT32 nPackets;
-            Metrics.Jitter = rtpStream->CalculateJitter().as<float>();
+            Metrics.Jitter = jitter.as<float>();
             Metrics.Jitter /= 1000000; // to milli-sec
             Metrics.fLossRate = rtpStream->CalculatePacketLossRate(nPackets);
             Metrics.nPackets = nPackets;
             float rfactor, mos;
-            if(! rtpStream->CalculateMOS(mos, rfactor))
+            if(! rtpStream->CalculateMOS(mos, rfactor, delay, jitter, Metrics.fLossRate))
                 return false;
             Metrics.RFactor = rfactor;
             Metrics.MOS = mos;
@@ -124,27 +129,56 @@ namespace mqa {
         CMQmonInterfaceDt(MQmon* mon)
             : mon(mon)
         {}
+        virtual ~CMQmonInterfaceDt() {
+            clearFlows();
+        }
 
         virtual bool IndicatePacket(const UINT8* pPkt, UINT16 pPktLength, const CMQmonFrameInfo& PktInfo){
             assert(0);
             return false;
         }
-        virtual void removeFlow(uintptr_t flowId)
-        {
-            StreamMapIter it = streamMap.find(flowId);
+        bool destroyFlow(StreamMapIter it) {
             if( it != streamMap.end() ) {
                 it->second->removeFromContainer();
-                CMQmonStream *p = it->second;
+                CMQmonStreamDt *p = (CMQmonStreamDt*)it->second;
                 delete p;
+                streamMap.erase(it);
+                return true;
             }
-            streamMap.erase(flowId);
+            return false;
         }
-         MQmonNotifyType IndicateRtpPacket(uintptr_t flowId, const UINT8* pPkt, UINT16 pPktLength, UINT32 timeSec, UINT32 timeNSec, CMQmonStream** ppStream)
+        StreamMapIter FindStreamIter(uintptr_t flowId) {
+            return streamMap.find(flowId);
+        }
+        StreamMapIter FindStreamIter(CMQmonStream *strm) {
+            for(StreamMapIter it= streamMap.begin(); it!= streamMap.end(); ++it) {
+                if( it->second == strm ) 
+                    return it;
+            }
+            return streamMap.end();
+        }
+        CMQmonStream *FindStream(uintptr_t flowId) {
+            StreamMapIter it = streamMap.find(flowId);
+            return it == streamMap.end()?NULL:it->second;
+        }
+        virtual bool removeFlow(uintptr_t flowId) {
+            return destroyFlow(FindStreamIter(flowId));
+        }
+        virtual bool removeFlow(CMQmonStream *strm){
+            return destroyFlow(FindStreamIter(strm));
+        }
+        virtual void clearFlows() {
+            while( !streamMap.empty() ) {
+                destroyFlow(streamMap.begin());;
+            }
+        }
+
+        MQmonNotifyType IndicateRtpPacket(uintptr_t flowId, const UINT8* pPkt, UINT16 pPktLength, UINT32 timeSec, UINT32 timeNSec, CMQmonStream** ppStream)
         {
             CMQmonStreamDt *pStream=NULL;
             StreamMapIter   it;
             if( streamMap.end() == (it=streamMap.find(flowId)) ){
-                pStream = (CMQmonStreamDt *)mon->CreateStream();
+                pStream = (CMQmonStreamDt *)mon->CreateStream(this);
                 streamMap[flowId] = pStream;
             }else{
                 pStream = it->second;
@@ -180,11 +214,13 @@ namespace mqa {
     }
     MQmon::~MQmon()
     {
+        if(priv)
+            delete priv;
     }
     MQmon* MQmon::Instance()
     {
         static MQmon  _THIS;
-        
+
         return &_THIS;;
     }
 
@@ -210,8 +246,8 @@ namespace mqa {
         priv->streams.clear();
         priv->interfaces.clear();
 
-        delete priv;
-        delete this;
+        //delete priv;
+        //delete this;
     }
 
     CMQmonInterface* MQmon::CreateInterface()
@@ -220,12 +256,23 @@ namespace mqa {
         priv->interfaces.push_back(p);
         return p;
     }
+    void MQmon::DestroyInterface(CMQmonInterface* intf) {
+        priv->interfaces.remove(intf);
+        delete intf;
+    }
 
     CMQmonStream* MQmon::CreateStream(CMQmonInterface *intf)
     {
         CMQmonStreamDt* p = new CMQmonStreamDt(this, intf);
         p->putToContainer();
         return (CMQmonStream*)p;
+    }
+    void MQmon::DestroyStream(CMQmonStream* strm) {
+        for(InterfaceList::iterator it=priv->interfaces.begin(); it!= priv->interfaces.end(); ++it) {
+            if( (*it)->removeFlow(strm) )
+                return;
+        }
+        delete strm;
     }
 
     void MQmon::SetRtpNoisePacketsNum(int num) {

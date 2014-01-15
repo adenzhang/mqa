@@ -116,17 +116,28 @@ namespace mqa {
     class CMQmonStream;
     class MQMON_DLLEXPORT CMQmonInterface
     {
-    public:
-        CMQmonInterface(MQmon* mon=NULL) : m_pMon(mon), m_pUserdata(NULL) {}
+        friend class MQmon;
+    protected:
         virtual ~CMQmonInterface() {}
+        CMQmonInterface(MQmon* mon=NULL) : m_pMon(mon), m_pUserdata(NULL) {}
+    public:
         virtual bool IndicatePacket(const UINT8* pPkt, UINT16 pPktLength, const CMQmonFrameInfo& PktInfo) = 0;
 
-        virtual void removeFlow(uintptr_t flowId){}
+        // remove and destroy stream
+        // return true if successful; false when no flow has been found.
+        virtual bool removeFlow(uintptr_t flowId){return false;}
 
         // out new stream or NULL
         virtual MQmonNotifyType IndicateRtpPacket(uintptr_t flowId, const UINT8* pPkt, UINT16 pPktLength, UINT32 timeSec, UINT32 timeNSec, CMQmonStream**){return MQMON_NOTIFY_RTP;}
 
         virtual bool GetMetrics(CMQmonMetrics& Metrics) = 0;
+
+        virtual CMQmonStream *FindStream(uintptr_t flowId) {return NULL;}
+
+        // remove and destroy stream
+        virtual bool removeFlow(CMQmonStream *strm){return false;}
+
+        virtual void clearFlows(){}
 
         MQmon* m_pMon;
         void*  m_pUserdata;
@@ -134,16 +145,20 @@ namespace mqa {
 
     class MQMON_DLLEXPORT CMQmonStream
     {
-    public:
+    protected:
+        friend class MQmon;
+        friend class CMQmonInterface;
+        virtual ~CMQmonStream()
+        {}
         CMQmonStream(CMQmonInterface* Interface=NULL)
             : m_Interface(Interface)
             , m_pUserdata(NULL)
         {}
-        virtual ~CMQmonStream()
-        {}
+    public:
 
         virtual bool IndicatePacket(const UINT8* pPkt, UINT16 pPktLength, const CMQmonFrameInfo& PktInfo) = 0;
         virtual bool IndicateRtpPacket(const UINT8* pPkt, UINT16 pPktLength, UINT32 timeSec, UINT32 timeNSec){return false;}
+        virtual bool IndicateRtcpPacket(const UINT8* pPkt, UINT16 pPktLength, UINT32 timeSec, UINT32 timeNSec){return false;}
         virtual bool IsValidStream(){return false;}
         virtual bool DetectStream(){return false;}
         virtual bool GetMetrics(CMQmonMetrics& Metrics) = 0;
@@ -185,7 +200,10 @@ namespace mqa {
         virtual void Destroy();
 
         virtual CMQmonInterface* CreateInterface();
-        virtual CMQmonStream* CreateStream(CMQmonInterface *intf=NULL);
+        // when destroy an interface, all associated streams will be destroyed.
+        virtual void DestroyInterface(CMQmonInterface* );
+        virtual CMQmonStream* CreateStream(CMQmonInterface *intf);
+        virtual void DestroyStream(CMQmonStream* );
 
         // only given number of consecutive packets has been valid RTP packets, the RTP stream will be detected.
         // if not specified, RtpDetectionParam::kDefaultDetectPackets will be used by default.

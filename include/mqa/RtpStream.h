@@ -1,11 +1,13 @@
 #ifndef MQA_MQALGO_H_
 #define MQA_MQALGO_H_
 
-#include "mqa/mqa_shared.h"
+#include "mqa_shared.h"
 #include "ftl/timesec.h"
 
-#include "mqa/RtpTypes.h"
-#include "mqa/RtpPacketParser.h"
+#include "RtpTypes.h"
+#include "RtpPacketParser.h"
+#include "RtcpPacketParser.h"
+
 
 namespace mqa {
 
@@ -16,6 +18,7 @@ namespace mqa {
 
         // return false and set invalid if invalid RTP header. 
         virtual bool IndicateRtpPacket(const ftl::timenano& captureTime, const RtpPacketParser& packet) = 0;
+        virtual bool IndicateRtcpPacket(const ftl::timenano& captureTime, const RtcpPacketParser& packet) = 0;
 
         // check whether stream has been detected.
         virtual bool IsValidStream() const = 0;
@@ -36,7 +39,7 @@ namespace mqa {
         virtual ftl::timenano CalculateJitter() = 0;
 
         // step 4: calculate MOS & jitter
-        virtual bool CalculateMOS(float& mos, float& rfactor) = 0;
+        virtual bool CalculateMOS(float& mos, float& rfactor, const ftl::timenano& onewayDelay, const ftl::timenano& jitter, double packetLossRate) = 0;
 
         virtual bool SetCodecType(INT16 codec) = 0;
         virtual INT16 GetCodecType() = 0;

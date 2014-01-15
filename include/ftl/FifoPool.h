@@ -15,7 +15,6 @@
 ///    |_buf           |_head             |_tail            |_end          |_MAX_SIZE
 namespace ftl{
 
-typedef unsigned long size_t;
 
 class FifoPool
 {
