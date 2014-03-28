@@ -20,44 +20,49 @@ namespace mqa {
     //} ;
     typedef float MQmonMOS;
 
-    typedef enum
+    enum MQmonProtocol_
     {
         MQMON_PROTO_UNKNOW = 0,
         MQMON_PROTO_TCP = 0x06,
         MQMON_PROTO_UDP = 0x11
-    } MQmonProtocol;
+    } ;
+    typedef int MQmonProtocol;
 
-    typedef enum
+    enum MQmonLogLevel_
     {
         MQMON_LOG_NONE = 0,
         MQMON_LOG_ERROR,
         MQMON_LOG_INFO,
         MQMON_LOG_DEBUG
-    } MQmonLogLevel;
+    } ;
+    typedef int MQmonLogLevel;
 
-    typedef enum
+    enum MQmonProvider_
     {
         MQMON_TELCHEMY,
         MQMON_DRIVETEST,
         MQMON_UNKNOWN
-    } MQmonProvider;
+    } ;
+    typedef int MQmonProvider;
 
-    typedef enum
+    enum MQmonStreamType_
     {
-        MQMON_STREAM_UNKOWN     = 0,
-        MQMON_STREAM_AUDIO      = 1 << 1,
-        MQMON_STREAM_VIDEO      = 1 << 2,
-        MQMON_STREAM_VOICE      = 1 << 3
-    } MQmonStreamType;
+        MQMON_STREAM_UNKOWN = 0,
+        MQMON_STREAM_AUDIO,
+        MQMON_STREAM_VIDEO,
+        MQMON_STREAM_VOICE
+    } ;
+    typedef int MQmonStreamType;
 
-    typedef enum
+    enum MQmonNotifyType_
     {
         MQMON_NOTIFY_RTP              = 0,
         MQMON_NOTIFY_ACTIVATING       = 1,
         MQMON_NOTIFY_DEACTIVATING     = 1 << 1,
         MQMON_NOTIFY_NORTP            = 1 << 2,
         MQMON_NOTIFY_ALL              = MQMON_NOTIFY_ACTIVATING | MQMON_NOTIFY_DEACTIVATING
-    } MQmonNotifyType;
+    } ;
+    typedef int MQmonNotifyType;
 
     typedef struct _MQmonNotifyInfo_S
     {
@@ -94,8 +99,9 @@ namespace mqa {
     class MQMON_DLLEXPORT CMQmonMetrics
     {
     public:
+        enum {INVALID_MOS = 6};
         CMQmonMetrics()
-            : MOS(0)
+            : MOS(INVALID_MOS)
             , Jitter(0)
             , RFactor(0)
             , fLossRate(0)
@@ -153,6 +159,7 @@ namespace mqa {
         CMQmonStream(CMQmonInterface* Interface=NULL)
             : m_Interface(Interface)
             , m_pUserdata(NULL)
+            , m_StreamType(0), m_codecType(0)
         {}
     public:
 
@@ -171,6 +178,7 @@ namespace mqa {
             m_codecType = codec;
             return true;
         }
+        virtual void SetUserOnewayDelay(UINT32 milli) {;}
         CMQmonInterface* m_Interface;
         MQmonStreamType  m_StreamType;
         INT16            m_codecType;

@@ -8,25 +8,26 @@ namespace mqa {
 
     enum {MAX_RTP_PAYLOAD_TYPE  = 128 };
 
-
-    typedef enum tagRTPMediaType
+    enum tagRTPMediaType
     {
         RTPMEDIA_UNKNOWN = 0,
         RTPMEDIA_AUDIO,
         RTPMEDIA_VIDEO,
         RTPMEDIA_AV
-    } RTPMediaType;
+    } ;
+    typedef int RTPMediaType;
 
     typedef enum tagRTPStreamType
     {
         RTPTYPE_NONE = 0,
         RTPTYPE_VOIP,
+        RTPTYPE_AUDIO = 2,
         RTPTYPE_IPTV,
-        RTPTYPE_AUDIO,
+        RTPTYPE_VIDEO = 4,
         RTPTYPE_ISMA,
-        RTPTYPE_VIDEO,
         RTPTYPE_ICC_RUDP // used for reference, do not display
-    } RTPStreamType;
+    } ;
+    typedef int RTPStreamType;
 
 #define DEF_SUBCODEC(codec, num) \
 	codec##_##num = (codec|(num<<RTPCODEC_BITS))
@@ -34,7 +35,7 @@ namespace mqa {
 #define DEF_SUBCODECN(codec, name, num) \
 	codec##_##name = (codec|(num<<RTPCODEC_BITS))
 
-    typedef enum
+    enum RTPCodec_
     {
         RTPCODEC_MASK        = 0x00FF,
         RTPSUBCODEC_MASK     = 0xFF00,
@@ -127,7 +128,13 @@ namespace mqa {
         DEF_SUBCODECN(RTPCODEC_AMRWB, 2385, 9),
 
         RTPCODEC_UNKOWN      = 0xFFFF
-    } RTPCodec;
+    };
+    typedef int RTPCodec;
+
+    typedef struct CodecListStruct {
+        RTPCodec_   CodecCode;
+        char        CodecName[16];
+    } CodecListType;
 
     typedef struct
     {
@@ -139,16 +146,16 @@ namespace mqa {
     struct RtpEModelFactor
     {
         RTPCodec codec;
-        float fLookahead;  // milli second
-        float Ie;          // equipment impairment factor
-        float Bpl;         // Packet-loss robustness factor
+        double fLookahead;  // milli second
+        double Ie;          // equipment impairment factor
+        double Bpl;         // Packet-loss robustness factor
     };
     MQA_API RtpEModelFactor *GetEModelFactor(RTPCodec codec);
     MQA_API RTPPayloadCodecInfo *GetCodecInfo(RTPCodec codec);
 
-    MQA_API bool RTPCodec2RTPMediaType(const RTPCodec codec, RTPMediaType& mediaType, RTPStreamType& streamType) ;
-    MQA_API int RTPCodec2CodecFrameSize(const RTPCodec codec, int* packetSize=0);
-    MQA_API UINT32 RTPCodec2ClockRate(const RTPCodec codec);
+    MQA_API bool RTPCodec2RTPMediaType(RTPCodec codec, RTPMediaType& mediaType, RTPStreamType& streamType) ;
+    MQA_API int RTPCodec2CodecFrameSize(RTPCodec codec, int* packetSize=0);
+    MQA_API UINT32 RTPCodec2ClockRate(RTPCodec codec);
     MQA_API bool CalculateRFactor(RTPCodec nCodecType,
             double    dCodecFrameSize,
             double    dRTPjitter,

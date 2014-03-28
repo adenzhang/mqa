@@ -91,7 +91,7 @@ bool LoadPcap(const std::string& sTrafficFile, FrameParserList& FrameList)
             break;
 
         // Allocate frame info and parse each packet
-        mqa::StatsFrameParser* pFrameInfo = new mqa::StatsFrameParser(20);  // RTP header size
+        mqa::StatsFrameParser* pFrameInfo = new mqa::StatsFrameParser(128);  // RTP header size
         if (!pFrameInfo)
             return false;
         if(!pFrameInfo->ParseFrame(pPkt, pPktHeader->incl_len, 0))

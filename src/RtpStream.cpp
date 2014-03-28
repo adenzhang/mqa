@@ -2,6 +2,8 @@
 #include <list>
 #include <algorithm>
 
+#pragma warning (disable:4244)
+
 #define SetMinMax(nSample, nMin, nMax) \
     if ((nSample < nMin)) nMin = nSample; \
     if (nSample > nMax) nMax = nSample;
@@ -70,7 +72,7 @@ namespace mqa {
     protected:
         const size_t minSize_;  // min size
         const size_t maxSize_;  // max size
-
+        
     };
     typedef PacketInfo<RtpPacketParser> RtpPacketInfo;
     typedef PacketInfo<RtcpPacketParser> RtcpPacketInfo;
@@ -86,8 +88,8 @@ namespace mqa {
     struct RtpStreamImpl
         :public RtpStream
     {
-        enum {MAX_NOISE_PACKETS = 2};
-        enum {MAX_DETECT_PACKETS = 4};
+        enum {MAX_NOISE_PACKETS = 1};
+        enum {MAX_DETECT_PACKETS = 4, NLAST_RTCP = 10};
 
         UINT8          bValidStream:1;
 
@@ -98,16 +100,18 @@ namespace mqa {
         ftl::timenano currJitter, prevJitter;
         double        currMOS, prevMOS;
 
-        UINT64        nMinSeqNum, nMaxSeqNum, nRecvPackts;
+        UINT64        nMinSeqNum, nMaxSeqNum;
+        UINT32        nRecvPackts;
         UINT32        nCodecFrameSize, nClockRate;
         int           lenPayload;
+        UINT32        userOnewayDelay;
 
         RTPMediaType  mediaType;
         RTPCodec      codecType;
         RTPStreamType streamType;
 
         // following are used to detect stream
-        const int     NLASTPACKETS;
+        const unsigned int     NLASTPACKETS;
         PacketQueue    lastPackets;  // save the last several packets.
 
         const int     NLastRtcpPackets;
@@ -117,6 +121,8 @@ namespace mqa {
         int           nNoisePackets;
 
         UINT32          nRtcpPackets;
+        UINT32          ssrc;
+        ftl::timenano   captureDelay;
 
         RtpStreamImpl(int nDetectPackets = MAX_DETECT_PACKETS, int nNoisePackets = MAX_NOISE_PACKETS)
             : bValidStream(false)
@@ -129,8 +135,11 @@ namespace mqa {
             , nNoisePackets(nDetectPackets)
             , lastPackets(0, nDetectPackets)
             , nRtcpPackets(0)
-            , NLastRtcpPackets(1)
-            , lastRtcpPackets(0, 1)
+            , NLastRtcpPackets(NLAST_RTCP)
+            , lastRtcpPackets(0, NLastRtcpPackets)
+            , codecType(0), mediaType(0),streamType(0) 
+            , userOnewayDelay(0)
+            , ssrc(0)
         {
         }
         void reset(int nDetectPackets, int nNoisePackets)
@@ -142,11 +151,11 @@ namespace mqa {
         static bool fastCheckRTP(const RtpPacketParser& prev, const RtpPacketParser& curr)
         {
             return prev.ver == curr.ver
-                && prev.nHeaderLength == curr.nHeaderLength
-                && prev.nCC == curr.nCC
-                && prev.ssrc == curr.ssrc
-                //&& prev.payloadType == curr.payloadType  // payload type may dynamicly change
-                ;
+            && prev.nHeaderLength == curr.nHeaderLength
+            && prev.nCC == curr.nCC
+            && prev.ssrc == curr.ssrc
+            //&& prev.payloadType == curr.payloadType  // payload type may dynamicly change
+            ;
         }
         void invalidateStream() {
             nMinSeqNum = RtpPacketParser::MAX_SEQ_NUM;
@@ -179,9 +188,14 @@ namespace mqa {
                 return handleNoisePacket(packet);
             }
             if( lastPackets.size()>0 ) {
-                if( bValidStream && !fastCheckRTP(*lastPackets.begin(), packet) ) {
-                    // only check nose packet when valid RTP stream.
+                const RtpPacketParser& prevPacket= lastPackets.back();
+                bool bConsistent = fastCheckRTP(prevPacket, packet);
+                if( bValidStream && !bConsistent ) {
                     return handleNoisePacket(packet);
+                }
+                if( bConsistent && prevPacket.sequenceNum >= packet.sequenceNum ) { // check duplicate
+                    //nRecvPackts++; 
+                    return true;
                 }
             }
             nNoisePackets = 0;
@@ -196,17 +210,51 @@ namespace mqa {
             nRecvPackts++;
             return true;
         }
+        bool IsAssociated(const RtcpPacketParser& rtcp, const RtpPacketParser& rtp ) {
+            if( rtcp.ssrc == rtp.ssrc ) 
+                return true;
+            if( rtcp.reports.size() > 0 ) {
+                if( rtcp.reports[0]->ssrc == rtp.ssrc )
+                    return true;
+            }
+            return false;
+        }
         bool IndicateRtcpPacket(const ftl::timenano& captureTime, const RtcpPacketParser& apacket)
         {
             RtcpPacketParser packet(apacket);
             if( !packet.IsValid() && !packet.Parse()) {
                 return false;
             }
-            if( packet.reports.size()>0 ) {
-                lastRtcpPackets.push_back(RtcpPacketInfo(packet, captureTime));
+            if(lastRtcpPackets.size()>0) {
+                RtcpPacketInfo& prev = lastRtcpPackets.back();
+                if( prev.NTPTimeLSW == apacket.NTPTimeLSW && prev.NTPTimeMSW == apacket.NTPTimeMSW 
+                    && prev.sendersPacketCount == apacket.sendersPacketCount && prev.sendersByteCount == apacket.sendersByteCount )
+                    return false;
             }
-            nRtcpPackets++;
-            return true;
+            if( packet.reports.size()>0 && lastPackets.size()>0) {
+                //if( lastRtcpPackets.size() > 0 ) {
+                //    if( packet == dynamic_cast<RtcpPacketParser&>(lastRtcpPackets.back()) ) {
+                //        nRtcpPackets++;
+                //        return true;
+                //    }
+                //}
+                if( IsAssociated(packet, lastPackets.front() ) ) {
+                    RtcpPacketInfo curr(packet, captureTime);
+                    if( lastRtcpPackets.size()>0 ) 
+                    {
+                        // calculate delay
+                        RtcpPacketInfo& prev = lastRtcpPackets.back();
+                        if( curr.reports[0]->ssrc == ssrc && prev.ssrc == ssrc )
+                        {
+                            calcRtcpDelay(captureDelay, curr, prev);
+                        }
+                    }
+                    lastRtcpPackets.push_back(curr);
+                    nRtcpPackets++;
+                    return true;
+                }
+            }
+            return false;
         }
         virtual bool IsValidStream() const
         {
@@ -245,7 +293,7 @@ namespace mqa {
             bValidStream = true;
             prev--;
             {
-                codecType = (RTPCodec)prev->payloadType;
+                codecType = prev->payloadType;
                 nCodecFrameSize = RTPCodec2CodecFrameSize(codecType, &lenPayload);
                 RTPCodec2RTPMediaType(codecType, mediaType, streamType);
                 nClockRate = RTPCodec2ClockRate(codecType);
@@ -253,23 +301,60 @@ namespace mqa {
 
                 prevTx = prev->timestamp;
                 prevRx = prev->capTime;
+                ssrc = prev->ssrc;
             }
             return true;
         }
         inline RtcpPacketParser::StatsBlock *GetRtcpStatsReport() {
-            if( nRtcpPackets && lastRtcpPackets.size()>0 && lastRtcpPackets.begin()->reports.size()>0 )
-                return (RtcpPacketParser::StatsBlock*)lastRtcpPackets.begin()->reports[0].get(); // currenty use only one report by default.
-            else return NULL;
+            if( nRtcpPackets && lastRtcpPackets.size()>0 ){
+                for(RtcpPacketQueue::reverse_iterator it = lastRtcpPackets.rbegin();
+                    it != lastRtcpPackets.rend(); it++ ) 
+                {
+                    if( it->reports[0]->ssrc == ssrc ) {
+                        return (RtcpPacketParser::StatsBlock*)it->reports[0].get();
+                    }
+                }
+            }
+            return NULL;
         }
-        inline float GetRtcpPacketLossRate(RtcpPacketParser::StatsBlock* pBlock) {
-            return pBlock->fractionLost * 1000.0F / 256.0F;
+        inline float GetRtcpPacketLossRate(RtcpPacketParser::StatsBlock* pBlock, UINT32& nPackets) {
+            nPackets = pBlock->highestSequenceNumber - nMinSeqNum + 1;
+            return pBlock->fractionLost / 256.0F;
+            //return  float(pBlock->cumulativeLost)/nPackets;
         }
-        inline ftl::timenano GetRtcpOnewayDelay(RtcpPacketParser::StatsBlock* pBlock) {
-            double delay = pBlock->dlxr/65536.0F; // in seconds
-            return ToTimeSec<ftl::timenano>(delay);
+        inline bool calcRtcpDelay(ftl::timenano& delay, const RtcpPacketInfo& currRtcp, const RtcpPacketInfo& prevRtcp) 
+        {
+            //if( currRtcp.reports[0]->ssrc == ssrc && prevRtcp.ssrc == ssrc )
+            {
+                ftl::timenano dCapture = currRtcp.capTime - prevRtcp.capTime;
+                delay = dCapture - ToTimeSec<ftl::timenano>(currRtcp.reports[0]->dlxr/65536.0F);
+                if(delay < 0 ) {
+                    delay = 0;
+                    return false;
+                }
+                return true;
+            }
+            return false;
+        }
+        inline bool GetRtcpOnewayDelay(ftl::timenano& delay) {
+            if( captureDelay.as<int>() == 0 ) return false;
+            delay = captureDelay;
+            return true;
+            RtcpPacketQueue::reverse_iterator itCurr = lastRtcpPackets.rbegin();
+            RtcpPacketQueue::reverse_iterator itPrev = itCurr;
+            itPrev++;
+            for(;lastRtcpPackets.rend() != itPrev; itCurr++, itPrev++)
+            {
+                //if( itPrev->CompactNTPTime != 0 && itCurr->reports[0]->lxr == itPrev->CompactNTPTime ) 
+                if( itCurr->reports[0]->ssrc == ssrc && itPrev->ssrc == ssrc )
+                {
+                    return calcRtcpDelay(delay, *itCurr, *itPrev);
+                }
+            }; 
+            return false;
         }
         inline ftl::timenano TimeCount2Nano(UINT32 timestamp) {
-            return ftl::timenano::kSUBSEC/nClockRate*timestamp;
+            return float(timestamp)/nClockRate*ftl::timenano::kSUBSEC;
         }
         inline ftl::timenano GetRtcpJitter(RtcpPacketParser::StatsBlock* pBlock) {
             return TimeCount2Nano(pBlock->interarrivalJitter);
@@ -278,19 +363,25 @@ namespace mqa {
         {
             if( RtcpPacketParser::StatsBlock *pRtcpStats = GetRtcpStatsReport() ) {
                 //--- use rtcp
-                nPackets = nRecvPackts;
-                return GetRtcpPacketLossRate(pRtcpStats);
+                return GetRtcpPacketLossRate(pRtcpStats, nPackets);
             }
             nPackets = nRecvPackts;
-            return float(nRecvPackts-(nMaxSeqNum-nMinSeqNum))/(nMaxSeqNum-nMinSeqNum);
+            float lossrate = float(nRecvPackts-(nMaxSeqNum-nMinSeqNum+1))/(nMaxSeqNum-nMinSeqNum+1);
+            if( lossrate<0 ) lossrate = 0;
+            return lossrate;
         }
 
-        ftl::timenano CalculateOneWayDelay()
+        bool CalculateOneWayDelay(ftl::timenano& delay)
         {
-            if( RtcpPacketParser::StatsBlock *pRtcpStats = GetRtcpStatsReport() ) {
-                //--- use rtcp
-                return GetRtcpOnewayDelay(pRtcpStats);
+            if(userOnewayDelay>0) {
+                delay.nsec = userOnewayDelay*1000000;
+                return true;
             }
+            if( lastRtcpPackets.size() > 1 ) {
+                //--- use rtcp
+                return GetRtcpOnewayDelay(delay);
+            }
+            return false;
             using namespace ftl;
             prevDelay = currDelay;
 
@@ -303,7 +394,8 @@ namespace mqa {
             timenano  dTimePacket = TimeCount2Nano(dCountTx);  // convert to nano-second
 
             currDelay = dCapture - dTimePacket;
-            return currDelay;
+            delay = currDelay<0?(-currDelay):currDelay;
+            return true;
         }
 
         //J(i) = J(i-1) + ( |D(i-1,i)| - J(i-1) )/16
@@ -320,17 +412,19 @@ namespace mqa {
             return currJitter;
         }
 
-        bool CalculateMOS(float& mos, float& rfactor, const ftl::timenano& onewayDelay, const ftl::timenano& jitter, double packetLossRate)
+        bool CalculateMOS(float& mos, float& rfactor, const ftl::timenano& onewayDelay, const ftl::timenano& jitter, float packetLossRate)
         {
             double MOS, RFactor;
             bool ret;
-            double fJitter = jitter.as<float>()/1000000;
-            double fDelay = onewayDelay.as<float>()/1000000;
+            double fJitter = jitter.as<double>()/1000000;
+            double fDelay = onewayDelay.as<double>()/1000000;
             double lossRate = packetLossRate;
             ret = CalculateRFactor(codecType, nCodecFrameSize, fJitter>0?fJitter:-fJitter
                 , fDelay>0?fDelay:-fDelay, 0.0, lossRate, &RFactor, &MOS);
-            mos = MOS;
-            rfactor = RFactor;
+            if( ret ) {
+                mos = MOS;
+                rfactor = RFactor;
+            }
             return ret;
         }
         bool SetCodecType(INT16 codec)
@@ -341,6 +435,10 @@ namespace mqa {
             nClockRate = RTPCodec2ClockRate(codecType);
             return true;
         }
+        void SetUserOnewayDelay(UINT32 milli)
+        {
+            userOnewayDelay = milli;
+        }
         virtual INT16 GetCodecType()
         {
             return codecType;
@@ -348,6 +446,10 @@ namespace mqa {
         RTPMediaType GetMediaType()
         {
             return mediaType;
+        }
+        UINT32 GetRtcpPacketCount()
+        {
+            return nRtcpPackets;
         }
     };
 

@@ -50,6 +50,7 @@ namespace mqa {
     }
     MQA_API RTPPayloadCodecInfo *GetCodecInfo(RTPCodec codec)
     {
+        codec &= RTPCODEC_MASK;
         int N = GetAvailableCodecCount();
         for(int i =0;i <N; ++i) {
             if( codec == c_RTPPayloadCodecs[i].eCodec ) {
@@ -60,8 +61,9 @@ namespace mqa {
 
     }
 
-    bool RTPCodec2RTPMediaType(const RTPCodec codec, RTPMediaType& mediaType, RTPStreamType& streamType) 
+    bool RTPCodec2RTPMediaType(RTPCodec codec, RTPMediaType& mediaType, RTPStreamType& streamType) 
     {
+        codec &= RTPCODEC_MASK;
         switch (codec)
         {
         case RTPCODEC_PCMU:   // PCMU
@@ -113,13 +115,15 @@ namespace mqa {
             break;
 
         default:
-            return false;
-            break;
+            streamType = RTPTYPE_AUDIO;
+            mediaType  = RTPMEDIA_AUDIO;
+            return true;
         }
         return true;
     }
-    int RTPCodec2CodecFrameSize(const RTPCodec codec, int* packetSize)
+    int RTPCodec2CodecFrameSize(RTPCodec codec, int* packetSize)
     {
+        codec &= RTPCODEC_MASK;
         int dCodecFrameSize = 0;
         switch(codec) {
              case RTPCODEC_PCMU:     // PCMU
@@ -145,9 +149,10 @@ namespace mqa {
         }
         return dCodecFrameSize;
     }
-    UINT32 RTPCodec2ClockRate(const RTPCodec codec)
+    UINT32 RTPCodec2ClockRate(RTPCodec codec)
     {
         int N = GetAvailableCodecCount();
+        codec &= RTPCODEC_MASK;
         for(int i =0;i <N; ++i) {
             if( codec == c_RTPPayloadCodecs[i].eCodec ) {
                 return c_RTPPayloadCodecs->nClockRate;

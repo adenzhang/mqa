@@ -55,11 +55,7 @@ namespace mqa {
         void removeFromContainer() {
             if(!mon) return;
             // remove from MQmon
-            for(StreamList::iterator it = mon->priv->streams.begin(); it != mon->priv->streams.end(); ++it ) {
-                if( *it == (CMQmonStream* )this ) {
-                    mon->priv->streams.erase(it);
-                }
-            }
+            mon->priv->streams.remove((CMQmonStream* )this);
         }
 
         virtual bool IndicatePacket(const UINT8* pPkt, UINT16 pPktLength, const CMQmonFrameInfo& PktInfo)
@@ -81,8 +77,10 @@ namespace mqa {
         }
         virtual bool DetectStream(){
             bool ret = rtpStream->DetectStream();
-            m_codecType = rtpStream->GetCodecType();
-            m_StreamType = (MQmonStreamType)rtpStream->GetMediaType();
+            if(ret) {
+                m_codecType = rtpStream->GetCodecType();
+                m_StreamType = (MQmonStreamType)rtpStream->GetMediaType();
+            }
             return ret;
         }
         virtual void Reset() {
@@ -91,15 +89,16 @@ namespace mqa {
         virtual bool GetMetrics(CMQmonMetrics& Metrics)
         {
             if(!rtpStream->IsValidStream()) return false;
-            ftl::timenano delay = rtpStream->CalculateOneWayDelay();
             ftl::timenano jitter = rtpStream->CalculateJitter();
-            Metrics.nDelay = delay.as<int>(); 
-            Metrics.nDelay /= 1000000; // to milli-sec
             UINT32 nPackets;
-            Metrics.Jitter = jitter.as<float>();
-            Metrics.Jitter /= 1000000; // to milli-sec
+            Metrics.Jitter = ftl::timemilli(jitter).as<float>();
             Metrics.fLossRate = rtpStream->CalculatePacketLossRate(nPackets);
             Metrics.nPackets = nPackets;
+            ftl::timenano delay ;
+            //rtpStream->CalculateOneWayDelay(delay);
+            if( !rtpStream->CalculateOneWayDelay(delay) )
+                return false;
+            Metrics.nDelay = ftl::timemilli(delay).as<INT32>(); 
             float rfactor, mos;
             if(! rtpStream->CalculateMOS(mos, rfactor, delay, jitter, Metrics.fLossRate))
                 return false;
@@ -111,23 +110,24 @@ namespace mqa {
         virtual bool SetCodecType(INT16 codec)  {
             rtpStream->SetCodecType(codec);
             m_codecType = codec;
+            m_StreamType = (MQmonStreamType)rtpStream->GetMediaType();
             return true;
         }
-
-
+        virtual void SetUserOnewayDelay(UINT32 milli) {
+            rtpStream->SetUserOnewayDelay(milli);
+        }
     };
     //=================== CMQmonInterfaceDt =============================================
     class CMQmonInterfaceDt
         : public CMQmonInterface
     {
     public:
-        MQmon *mon;
         typedef boost::unordered_map<uintptr_t, CMQmonStreamDt*> StreamMap;
         typedef StreamMap::iterator                              StreamMapIter;
         boost::unordered_map<uintptr_t, CMQmonStreamDt*>         streamMap;
 
         CMQmonInterfaceDt(MQmon* mon)
-            : mon(mon)
+            : CMQmonInterface(mon)
         {}
         virtual ~CMQmonInterfaceDt() {
             clearFlows();
@@ -173,12 +173,12 @@ namespace mqa {
             }
         }
 
-        MQmonNotifyType IndicateRtpPacket(uintptr_t flowId, const UINT8* pPkt, UINT16 pPktLength, UINT32 timeSec, UINT32 timeNSec, CMQmonStream** ppStream)
+         MQmonNotifyType IndicateRtpPacket(uintptr_t flowId, const UINT8* pPkt, UINT16 pPktLength, UINT32 timeSec, UINT32 timeNSec, CMQmonStream** ppStream)
         {
             CMQmonStreamDt *pStream=NULL;
             StreamMapIter   it;
             if( streamMap.end() == (it=streamMap.find(flowId)) ){
-                pStream = (CMQmonStreamDt *)mon->CreateStream(this);
+                pStream = (CMQmonStreamDt *)m_pMon->CreateStream(this);
                 streamMap[flowId] = pStream;
             }else{
                 pStream = it->second;
@@ -187,11 +187,11 @@ namespace mqa {
                 return MQMON_NOTIFY_NORTP;
             if(!pStream->IsValidStream()) {
                 if( pStream->DetectStream() ) {
-                    if(mon->priv->handler) {
+                    if(m_pMon->priv->handler) {
                         MQmonNotifyInfo info;
                         info.bFlowId = true;
                         info.flowId = flowId;
-                        mon->priv->handler(this, pStream, MQMON_NOTIFY_ACTIVATING, &info);
+                        m_pMon->priv->handler(this, pStream, MQMON_NOTIFY_ACTIVATING, &info);
                     }
                     if(ppStream) *ppStream = pStream;
                     return MQMON_NOTIFY_ACTIVATING;
@@ -220,7 +220,7 @@ namespace mqa {
     MQmon* MQmon::Instance()
     {
         static MQmon  _THIS;
-
+        
         return &_THIS;;
     }
 
@@ -237,10 +237,10 @@ namespace mqa {
     }
     void MQmon::Destroy()
     {
-        for(StreamList::iterator it=priv->streams.begin(); it!= priv->streams.end(); ++it) {
+        for(InterfaceList::iterator it=priv->interfaces.begin(); it!= priv->interfaces.end(); ++it) {
             delete *it;
         }
-        for(InterfaceList::iterator it=priv->interfaces.begin(); it!= priv->interfaces.end(); ++it) {
+        for(StreamList::iterator it=priv->streams.begin(); it!= priv->streams.end(); ++it) {
             delete *it;
         }
         priv->streams.clear();

@@ -30,19 +30,22 @@ namespace mqa {
         // step 1: calculate one way delay
         // calculate results after setting above parameters
         // return time in second
-        virtual ftl::timenano CalculateOneWayDelay() = 0;
+        virtual bool CalculateOneWayDelay(ftl::timenano& delay) = 0;
 
         // step 2: calculate loss rate
         virtual float CalculatePacketLossRate(UINT32& nPackets) = 0;
+
+        virtual UINT32 GetRtcpPacketCount() = 0;
 
         // step 3: calculate jitter
         virtual ftl::timenano CalculateJitter() = 0;
 
         // step 4: calculate MOS & jitter
-        virtual bool CalculateMOS(float& mos, float& rfactor, const ftl::timenano& onewayDelay, const ftl::timenano& jitter, double packetLossRate) = 0;
+        virtual bool CalculateMOS(float& mos, float& rfactor, const ftl::timenano& onewayDelay, const ftl::timenano& jitter, float packetLossRate) = 0;
 
         virtual bool SetCodecType(INT16 codec) = 0;
         virtual INT16 GetCodecType() = 0;
+        virtual void SetUserOnewayDelay(UINT32 milli) = 0;
 
         virtual RTPMediaType GetMediaType() = 0;
 

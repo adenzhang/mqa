@@ -57,7 +57,7 @@ namespace mqa {
     }
     bool RtcpPacketParser::ParseSenderReport()
     {
-        UINT32 nReportLength = SIZE_SENDER_REPORT_SENDER_INFO + reportType*SIZE_REPORT_BLOCK;
+        UINT32 nReportLength = SIZE_SENDER_REPORT_SENDER_INFO + reportCount*SIZE_REPORT_BLOCK;
         if( nReportLength > rtcpLength ) return false;
 
         /////////////////////////////////////////////////////////////////////////
@@ -72,6 +72,15 @@ namespace mqa {
         //
         /////////////////////////////////////////////////////////////////////////
         //-- ignore sender's info
+
+        NTPTimeMSW    = Swap32(*(UINT32*)(pData +  0));
+        NTPTimeLSW    = Swap32(*(UINT32*)(pData +  4));
+        CompactNTPTime = ((NTPTimeMSW << 16) & 0xFFFF0000) +
+            ((NTPTimeLSW >> 16) & 0x0000FFFF);
+
+        timestamp       = Swap32(*(UINT32*)(pData +  8));
+        sendersPacketCount = Swap32(*(UINT32*)(pData + 12));
+        sendersByteCount   = Swap32(*(UINT32*)(pData + 16));
 
         pData += SIZE_SENDER_REPORT_SENDER_INFO;
         return ParseReceptionReports();
@@ -98,21 +107,22 @@ namespace mqa {
         //
         /////////////////////////////////////////////////////////////////////////
 
-        reports.resize(reportCount);
+        reports.reserve(reportCount);
         int nReports = 0;
         for(int i = 0; i< reportCount; ++i) {
             UINT32 nSSRC                = Swap32(*(UINT32*)(pData +  0));
             if( nSSRC > 0) {
                 StatsBlock *pBlock = new StatsBlock;
-                pBlock->ssrc = nSSRC;
+                pBlock->ssrc                = nSSRC;
                 pBlock->fractionLost        =                  *(pData +  4);
-                pBlock->cumulativeLost    = Swap32(*(UINT32*)(pData +  4)) & 0x00FFFFFF;
+                pBlock->cumulativeLost      = Swap32(*(UINT32*)(pData +  4)) & 0x00FFFFFF;
                 pBlock->highestSequenceNumber = Swap32(*(UINT32*)(pData +  8));
-                pBlock->interarrivalJitter              = Swap32(*(UINT32*)(pData + 12));
-                pBlock->lxr = Swap32(*(UINT32*)(pData + 16));
-                pBlock->dlxr               = Swap32(*(UINT32*)(pData + 20));
+                pBlock->interarrivalJitter  = Swap32(*(UINT32*)(pData + 12));
+                pBlock->lxr                 = Swap32(*(UINT32*)(pData + 16));
+                pBlock->dlxr                = Swap32(*(UINT32*)(pData + 20));
 
-                reports[nReports++] = ReportBlockPtr(pBlock);
+                reports.push_back(ReportBlockPtr(pBlock));
+                nReports++;
             }
 
             pData += SIZE_REPORT_BLOCK;
@@ -121,7 +131,7 @@ namespace mqa {
     }
     bool RtcpPacketParser::IsValidHeader() const
     {
-        if  ((length < rtcpLength) || 
+        if  ((packetLength < rtcpLength) || 
             (ver != 0x02)     ||
             ((reportType < 200)          || 
             (reportType > 207)))
@@ -138,6 +148,12 @@ namespace mqa {
     const char *RtcpPacketParser::GetPayload(int* len) const
     {
         return NULL;
+    }
+#define EQV(v)  ((v) == (a.v))
+    bool RtcpPacketParser::operator==(const RtcpPacketParser& a ) const
+    {
+        return ( EQV(reportType) && EQV(timestamp) && EQV(ssrc) && EQV(length) && EQV(reportCount) 
+            && EQV(NTPTimeMSW)&& EQV(NTPTimeLSW) && *reports[0] == *a.reports[0] );
     }
 
 }  // namespace mqa
