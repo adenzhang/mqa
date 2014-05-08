@@ -157,6 +157,10 @@ bool StatsFrameParser::ParseIpv4(UINT16& nOffset, bool bUpper)
         return false;
     }
 
+    // Define offset to Source/Destination IP Address
+    Info.IpInfo.nIpSrcOffset = nOffset + 12;
+    Info.IpInfo.nIpDstOffset = nOffset + 16;
+
     // Get IP header length
     UINT8 nIpHeaderLength = (pData[nOffset] & 0x0F) << 2;
     UINT16 nIpLength = ntohs(*((UINT16*)(pData + nOffset + 2))); // Including IP header
@@ -297,6 +301,10 @@ bool StatsFrameParser::ParseIpv6(UINT16& nOffset, bool bUpper)
         }
     }
 
+    // Define offset to Source/Destination IP Address
+    Info.IpInfo.nIpSrcOffset = nOffset + 8;
+    Info.IpInfo.nIpDstOffset = nOffset + 24;
+
     // Get IP header length
     UINT8 nIpHeaderLength = pCurr - (pData + nOffset);
     UINT16 nIpLength = ntohs(*((UINT16*)(pData + nOffset + 4))) + IPV6_HDR_LEN; // Including IP header
@@ -338,6 +346,8 @@ bool StatsFrameParser::ParseTrans(UINT16& nOffset, bool bUpper)
                 && (Info.TransInfo.nSrcPort == UDP_PORT_GTPU_SWAP
                 || Info.TransInfo.nDestPort == UDP_PORT_GTPU_SWAP))
             {
+                nOffset += sizeof(Info.TransInfo.nSrcPort) + sizeof(Info.TransInfo.nDestPort);
+                nOffset += 2 + 2;  // Checksum + UDP Length
                 if (!ParseGTP(nOffset))
                     return false;
             }
